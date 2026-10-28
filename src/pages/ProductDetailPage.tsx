@@ -425,7 +425,7 @@ export const ProductDetailPage: React.FC = () => {
                 <span className="text-slate-700">Compra corporativa em grande volume?</span>
               </div>
               <a
-                href={`https://wa.me/5511987654321?text=Ol%C3%A1!%20Gostaria%20de%20uma%20cota%C3%A7%C3%A3o%20especial%20do%20produto%20${encodeURIComponent(
+                href={`https://wa.me/557341419517?text=Ol%C3%A1!%20Gostaria%20de%20uma%20cota%C3%A7%C3%A3o%20especial%20do%20produto%20${encodeURIComponent(
                   product.name
                 )}%20(SKU:%20${product.sku})`}
                 target="_blank"

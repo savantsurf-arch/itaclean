@@ -28,7 +28,7 @@ export const WhatsAppFloating: React.FC = () => {
             grande volume?
           </p>
           <a
-            href="https://wa.me/5511987654321?text=Ol%C3%A1!%20Estou%20no%20site%20da%20Itaclean%20e%20gostaria%20de%20um%20or%C3%A7amento%20ou%20tirar%20d%C3%BAvidas."
+            href="https://wa.me/557341419517?text=Ol%C3%A1!%20Estou%20no%20site%20da%20Itaclean%20e%20gostaria%20de%20um%20or%C3%A7amento%20ou%20tirar%20d%C3%BAvidas."
             target="_blank"
             rel="noopener noreferrer"
             className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 rounded-lg shadow-sm transition-colors"

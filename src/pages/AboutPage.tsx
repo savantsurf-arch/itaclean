@@ -79,7 +79,7 @@ export const AboutPage: React.FC = () => {
             <p className="font-bold text-slate-900">Dados Cadastrais da Distribuidora:</p>
             <p>Razão Social: Itaclean Pro Distribuidora de Produtos de Limpeza Ltda</p>
             <p>CNPJ: 38.452.190/0001-44</p>
-            <p>Endereço: Av. Industrial e Logística Itaclean, 1500 - Galpão 04 - São Paulo/SP</p>
+            <p>Endereço: Av. Cinquentenário, 187 - Centro - Itabuna/BA (CEP: 45600-077)</p>
           </div>
         </div>
       </div>

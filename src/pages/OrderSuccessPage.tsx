@@ -101,7 +101,7 @@ export const OrderSuccessPage: React.FC = () => {
               <span>Imprimir Comprovante</span>
             </button>
             <a
-              href={`https://wa.me/5511987654321?text=Ol%C3%A1!%20Acabei%20de%20realizar%20o%20pedido%20${order.order_number}%20no%20site%20da%20Itaclean.`}
+              href={`https://wa.me/557341419517?text=Ol%C3%A1!%20Acabei%20de%20realizar%20o%20pedido%20${order.order_number}%20no%20site%20da%20Itaclean.`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg transition-colors"

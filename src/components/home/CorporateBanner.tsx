@@ -49,7 +49,7 @@ export const CorporateBanner: React.FC = () => {
               <ArrowRight className="w-4 h-4" />
             </Link>
             <a
-              href="https://wa.me/5511987654321?text=Ol%C3%A1!%20Represento%20uma%20empresa%20e%20gostaria%20de%20uma%20cota%C3%A7%C3%A3o%20corporativa."
+              href="https://wa.me/557341419517?text=Ol%C3%A1!%20Represento%20uma%20empresa%20e%20gostaria%20de%20uma%20cota%C3%A7%C3%A3o%20corporativa."
               target="_blank"
               rel="noopener noreferrer"
               className="w-full py-2.5 px-6 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl text-center border border-white/20 transition-all flex items-center justify-center gap-2"

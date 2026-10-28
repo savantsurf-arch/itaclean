@@ -56,20 +56,22 @@ export const Footer: React.FC = () => {
               <li className="flex items-start gap-2">
                 <Phone className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-medium text-white">(11) 4004-2020</span>
-                  <p className="text-[11px] text-slate-500">Televendas e Suporte Técnico</p>
+                  <a href="tel:7341419517" className="font-medium text-white hover:underline">
+                    (73) 4141-9517
+                  </a>
+                  <p className="text-[11px] text-slate-500">Atendimento e Televendas</p>
                 </div>
               </li>
               <li className="flex items-start gap-2">
                 <MessageCircle className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />
                 <a
-                  href="https://wa.me/5511987654321"
+                  href="https://wa.me/557341419517?text=Ol%C3%A1!%20Gostaria%20de%20informa%C3%A7%C3%B5es%20sobre%20os%20produtos%20Itaclean."
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-green-300 font-medium text-white transition-colors"
                 >
-                  (11) 98765-4321
-                  <p className="text-[11px] text-green-400/80">Atendimento WhatsApp Comercial</p>
+                  (73) 4141-9517
+                  <p className="text-[11px] text-green-400/80">WhatsApp Oficial de Vendas</p>
                 </a>
               </li>
               <li className="flex items-start gap-2">
@@ -86,7 +88,7 @@ export const Footer: React.FC = () => {
               </li>
               <li className="flex items-start gap-2">
                 <Mail className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
-                <span>comercial@itaclean.com.br</span>
+                <span>contato@itaclean.com.br</span>
               </li>
               <li className="flex items-start gap-2">
                 <Clock className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
@@ -94,7 +96,10 @@ export const Footer: React.FC = () => {
               </li>
               <li className="flex items-start gap-2">
                 <MapPin className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
-                <span>Av. Industrial, 1500 - Galpão 04 - São Paulo/SP</span>
+                <div>
+                  <span className="font-semibold text-white block">Loja & Showroom Itabuna:</span>
+                  <span>Av. Cinquentenário, 187 - Centro - Itabuna/BA (CEP: 45600-077)</span>
+                </div>
               </li>
             </ul>
           </div>

@@ -54,7 +54,9 @@ export const ContactPage: React.FC = () => {
                     <Phone className="w-4 h-4 text-sky-600" />
                   </div>
                   <div>
-                    <span className="font-bold text-slate-900 block text-sm">(11) 4004-2020</span>
+                    <a href="tel:7341419517" className="font-bold text-slate-900 block text-sm hover:underline">
+                      (73) 4141-9517
+                    </a>
                     <span className="text-slate-500">Televendas e Suporte de Pedidos</span>
                   </div>
                 </div>
@@ -65,14 +67,14 @@ export const ContactPage: React.FC = () => {
                   </div>
                   <div>
                     <a
-                      href="https://wa.me/5511987654321?text=Ol%C3%A1!%20Gostaria%20de%20um%20or%C3%A7amento%20para%20minha%20empresa."
+                      href="https://wa.me/557341419517?text=Ol%C3%A1!%20Gostaria%20de%20um%20or%C3%A7amento%20para%20minha%20empresa."
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-bold text-slate-900 hover:text-green-600 block text-sm"
                     >
-                      (11) 98765-4321
+                      (73) 4141-9517
                     </a>
-                    <span className="text-slate-500">WhatsApp Comercial B2B</span>
+                    <span className="text-slate-500">WhatsApp Comercial Itaclean</span>
                   </div>
                 </div>
 
@@ -81,7 +83,7 @@ export const ContactPage: React.FC = () => {
                     <Mail className="w-4 h-4 text-[#003893]" />
                   </div>
                   <div>
-                    <span className="font-bold text-slate-900 block">comercial@itaclean.com.br</span>
+                    <span className="font-bold text-slate-900 block">contato@itaclean.com.br</span>
                     <span className="text-slate-500">Envio de pedidos de compra e faturamento</span>
                   </div>
                 </div>
@@ -91,7 +93,7 @@ export const ContactPage: React.FC = () => {
                     <Clock className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="font-bold text-slate-900 block">Horário de Expedição</span>
+                    <span className="font-bold text-slate-900 block">Horário de Atendimento</span>
                     <span className="text-slate-500">Seg a Sex: 08:00 às 18:00 | Sáb: 08:00 às 13:00</span>
                   </div>
                 </div>
@@ -101,9 +103,9 @@ export const ContactPage: React.FC = () => {
                     <MapPin className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="font-bold text-slate-900 block">Centro de Distribuição</span>
+                    <span className="font-bold text-slate-900 block">Loja & Showroom</span>
                     <span className="text-slate-500">
-                      Av. Industrial e Logística Itaclean, 1500 - Galpão 04 - São Paulo/SP (CEP: 04567-000)
+                      Av. Cinquentenário, 187 - Centro - Itabuna/BA (CEP: 45600-077)
                     </span>
                   </div>
                 </div>

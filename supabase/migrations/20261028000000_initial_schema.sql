@@ -490,24 +490,25 @@ ON CONFLICT (slug) DO NOTHING;
 -- Configurações Iniciais da Loja
 INSERT INTO public.store_settings (key, value, description) VALUES
 ('store_info', '{
-    "name": "Itaclean Limpeza e Descartável",
-    "cnpj": "12.345.678/0001-90",
-    "phone": "(11) 4004-2020",
-    "whatsapp": "5511987654321",
-    "email": "comercial@itaclean.com.br",
-    "address": "Av. Industrial das Nações, 1500 - Galpão 04",
-    "neighborhood": "Distrito Industrial",
-    "city": "São Paulo",
-    "state": "SP",
-    "postal_code": "04567-000",
+    "name": "Itaclean Produtos de Limpeza e Descartáveis",
+    "cnpj": "38.452.190/0001-44",
+    "phone": "(73) 4141-9517",
+    "whatsapp": "557341419517",
+    "instagram": "https://www.instagram.com/itacleanlimpeza/",
+    "email": "contato@itaclean.com.br",
+    "address": "Av. Cinquentenário, 187",
+    "neighborhood": "Centro",
+    "city": "Itabuna",
+    "state": "BA",
+    "postal_code": "45600-077",
     "business_hours": "Segunda a Sexta: 08:00 às 18:00 | Sábado: 08:00 às 13:00"
 }'::jsonb, 'Informações cadastrais e institucionais da loja'),
 
 ('shipping_rules', '{
     "free_shipping_threshold": 299.00,
-    "express_delivery_regions": ["SP", "RJ", "MG", "PR"],
+    "express_delivery_regions": ["BA", "SE", "AL", "PE", "ES", "MG", "SP"],
     "pickup_enabled": true,
-    "pickup_address": "Centro de Distribuição Itaclean - Balcão de Retirada Expressa"
+    "pickup_address": "Loja Itaclean Itabuna: Av. Cinquentenário, 187 - Centro, Itabuna/BA"
 }'::jsonb, 'Regras de frete grátis e retirada no centro de distribuição'),
 
 ('payment_rules', '{

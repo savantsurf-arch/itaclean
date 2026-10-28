@@ -9,18 +9,21 @@ export const TopBar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex flex-col md:flex-row items-center justify-between gap-2">
         {/* Contact info & hours */}
         <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-blue-100">
-          <div className="flex items-center gap-1.5">
-            <Phone className="w-3.5 h-3.5 text-sky-400" />
-            <span>(11) 4004-2020</span>
-          </div>
           <a
-            href="https://wa.me/5511987654321?text=Ol%C3%A1!%20Gostaria%20de%20informa%C3%A7%C3%B5es%20sobre%20os%20produtos%20Itaclean."
+            href="tel:7341419517"
+            className="flex items-center gap-1.5 hover:text-sky-300 transition-colors"
+          >
+            <Phone className="w-3.5 h-3.5 text-sky-400" />
+            <span>(73) 4141-9517</span>
+          </a>
+          <a
+            href="https://wa.me/557341419517?text=Ol%C3%A1!%20Gostaria%20de%20informa%C3%A7%C3%B5es%20sobre%20os%20produtos%20Itaclean."
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 hover:text-green-300 transition-colors"
           >
             <MessageCircle className="w-3.5 h-3.5 text-green-400" />
-            <span className="font-medium">WhatsApp Comercial</span>
+            <span className="font-medium">WhatsApp: (73) 4141-9517</span>
           </a>
           <a
             href="https://www.instagram.com/itacleanlimpeza/"

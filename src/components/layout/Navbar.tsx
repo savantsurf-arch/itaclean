@@ -166,20 +166,20 @@ export const Navbar: React.FC = () => {
                 Fale com a Itaclean
               </p>
               <a
-                href="tel:1140042020"
+                href="tel:7341419517"
                 className="flex items-center gap-2 text-xs font-semibold text-slate-700 hover:text-[#003893]"
               >
                 <Phone className="w-3.5 h-3.5 text-sky-600" />
-                <span>(11) 4004-2020</span>
+                <span>(73) 4141-9517</span>
               </a>
               <a
-                href="https://wa.me/5511987654321"
+                href="https://wa.me/557341419517?text=Ol%C3%A1!%20Gostaria%20de%20informa%C3%A7%C3%B5es%20sobre%20os%20produtos%20Itaclean."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-xs font-semibold text-green-700 hover:text-green-800"
               >
                 <MessageCircle className="w-3.5 h-3.5 text-green-600" />
-                <span>WhatsApp Comercial</span>
+                <span>WhatsApp: (73) 4141-9517</span>
               </a>
             </div>
           </div>

@@ -113,7 +113,7 @@ export function calculateShippingEstimate(
     },
     {
       id: 'pickup',
-      name: 'Retirada no Centro de Distribuição Itaclean (Sem Custo)',
+      name: 'Retirada na Loja Itaclean (Av. Cinquentenário, 187 - Centro, Itabuna/BA - Sem Custo)',
       price: 0,
       deadline: 'Disponível em até 4 horas úteis',
       isFree: true,
