@@ -35,40 +35,41 @@ export const HeroSlider: React.FC = () => {
   };
 
   return (
-    <div className="relative bg-slate-900 text-white overflow-hidden aspect-[21/9] sm:aspect-[24/9] md:aspect-[3/1] max-h-[480px]">
-      {/* Background Image with Overlay */}
+    <div className="relative bg-slate-950 text-white overflow-hidden min-h-[360px] sm:min-h-[420px] md:min-h-[480px] max-h-[540px] flex items-center justify-center">
+      {/* Background Image with Darkened Center-Legible Gradient Overlay */}
       <div className="absolute inset-0 z-0">
         <img
           src={current.desktop_image_url}
           alt={current.title}
           className="w-full h-full object-cover transition-opacity duration-700 ease-in-out"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#00225d]/95 via-[#003893]/75 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#00173d]/90 via-[#00225d]/80 to-[#00173d]/90 backdrop-brightness-90" />
+        <div className="absolute inset-0 bg-black/35" />
       </div>
 
-      {/* Content */}
-      <div className="relative z-10 max-w-7xl mx-auto h-full px-6 sm:px-8 lg:px-12 flex flex-col justify-center">
-        <div className="max-w-2xl space-y-3 sm:space-y-4">
+      {/* Centered Content */}
+      <div className="relative z-10 max-w-5xl mx-auto h-full px-8 sm:px-14 lg:px-20 py-12 flex flex-col justify-center items-center text-center">
+        <div className="max-w-3xl flex flex-col items-center space-y-3 sm:space-y-4">
           {current.badge_text && (
-            <span className="inline-block bg-[#009fe3] text-white text-[10px] sm:text-xs font-extrabold uppercase tracking-wider px-3 py-1 rounded-full shadow-sm">
+            <span className="inline-flex items-center gap-1.5 bg-[#009fe3] text-white text-[11px] sm:text-xs font-black uppercase tracking-wider px-3.5 py-1 rounded-full shadow-md">
               {current.badge_text}
             </span>
           )}
-          <h1 className="text-xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white leading-tight tracking-tight drop-shadow-sm">
+          <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white leading-tight tracking-tight drop-shadow-md">
             {current.title}
           </h1>
           {current.subtitle && (
-            <p className="text-xs sm:text-sm md:text-base text-blue-100 max-w-xl line-clamp-2 sm:line-clamp-3 leading-relaxed">
+            <p className="text-xs sm:text-sm md:text-base lg:text-lg text-blue-100 max-w-2xl leading-relaxed drop-shadow-sm font-normal">
               {current.subtitle}
             </p>
           )}
-          <div className="pt-2">
+          <div className="pt-2 sm:pt-4">
             <Link
               to={current.link_url}
-              className="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs sm:text-sm px-5 py-2.5 sm:px-6 sm:py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+              className="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs sm:text-sm md:text-base px-6 py-3 sm:px-8 sm:py-3.5 rounded-xl shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-105 active:scale-95"
             >
               <span>{current.button_text || 'Conferir Produtos'}</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </Link>
           </div>
         </div>
@@ -79,27 +80,27 @@ export const HeroSlider: React.FC = () => {
         <>
           <button
             onClick={prevSlide}
-            className="absolute left-3 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/30 hover:bg-black/60 text-white backdrop-blur-xs transition-all"
+            className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-20 p-2.5 sm:p-3 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-sm transition-all hover:scale-110 shadow-lg border border-white/10"
             aria-label="Slide anterior"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
           <button
             onClick={nextSlide}
-            className="absolute right-3 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/30 hover:bg-black/60 text-white backdrop-blur-xs transition-all"
+            className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-20 p-2.5 sm:p-3 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-sm transition-all hover:scale-110 shadow-lg border border-white/10"
             aria-label="Próximo slide"
           >
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
 
           {/* Dots Indicator */}
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+          <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2 sm:gap-2.5">
             {banners.map((_, idx) => (
               <button
                 key={idx}
                 onClick={() => setCurrentIndex(idx)}
-                className={`h-2 rounded-full transition-all ${
-                  currentIndex === idx ? 'w-6 bg-amber-400' : 'w-2 bg-white/50 hover:bg-white'
+                className={`h-2 sm:h-2.5 rounded-full transition-all ${
+                  currentIndex === idx ? 'w-7 sm:w-8 bg-amber-400' : 'w-2 sm:w-2.5 bg-white/50 hover:bg-white'
                 }`}
                 aria-label={`Ir para banner ${idx + 1}`}
               />
