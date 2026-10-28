@@ -6,6 +6,7 @@ import { ProductSection } from '../components/home/ProductSection';
 import { B2BSolutions } from '../components/home/B2BSolutions';
 import { BrandsSection } from '../components/home/BrandsSection';
 import { CorporateBanner } from '../components/home/CorporateBanner';
+import { InstagramBanner } from '../components/home/InstagramBanner';
 import { Newsletter } from '../components/home/Newsletter';
 import { getProducts } from '../lib/data-service';
 import { Product } from '../types';
@@ -99,6 +100,9 @@ export const HomePage: React.FC = () => {
 
       {/* 11 & 12. Benefícios da loja e chamada para compras em quantidade */}
       <CorporateBanner />
+
+      {/* Instagram Oficial */}
+      <InstagramBanner />
 
       {/* 13. Newsletter */}
       <Newsletter />

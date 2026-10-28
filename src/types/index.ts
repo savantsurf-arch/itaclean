@@ -202,6 +202,7 @@ export interface StoreSettings {
   cnpj: string;
   phone: string;
   whatsapp: string;
+  instagram?: string;
   email: string;
   address: string;
   neighborhood: string;

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Phone, MessageCircle, Clock, ShieldCheck, Building2 } from 'lucide-react';
+import { InstagramIcon } from '../common/InstagramIcon';
 import { Link } from 'react-router-dom';
 
 export const TopBar: React.FC = () => {
@@ -20,6 +21,15 @@ export const TopBar: React.FC = () => {
           >
             <MessageCircle className="w-3.5 h-3.5 text-green-400" />
             <span className="font-medium">WhatsApp Comercial</span>
+          </a>
+          <a
+            href="https://www.instagram.com/itacleanlimpeza/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 hover:text-pink-300 transition-colors"
+          >
+            <InstagramIcon className="w-3.5 h-3.5 text-pink-400" />
+            <span className="font-medium">@itacleanlimpeza</span>
           </a>
           <div className="hidden lg:flex items-center gap-1.5 text-slate-300">
             <Clock className="w-3.5 h-3.5 text-sky-400" />

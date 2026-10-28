@@ -87,6 +87,17 @@ export const AdminSettings: React.FC = () => {
             </div>
 
             <div>
+              <label className="font-bold text-slate-700 block mb-1">Perfil Oficial do Instagram</label>
+              <input
+                type="text"
+                placeholder="https://www.instagram.com/itacleanlimpeza/"
+                value={settings.instagram || ''}
+                onChange={(e) => setSettings({ ...settings, instagram: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
+              />
+            </div>
+
+            <div>
               <label className="font-bold text-slate-700 block mb-1">E-mail Comercial de Vendas *</label>
               <input
                 type="email"

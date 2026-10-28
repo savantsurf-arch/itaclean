@@ -5,6 +5,7 @@ export const INITIAL_SETTINGS: StoreSettings = {
   cnpj: '38.452.190/0001-44',
   phone: '(11) 4004-2020',
   whatsapp: '5511987654321',
+  instagram: 'https://www.instagram.com/itacleanlimpeza/',
   email: 'comercial@itaclean.com.br',
   address: 'Av. Industrial e Logística Itaclean, 1500 - Galpão 04',
   neighborhood: 'Distrito Industrial',

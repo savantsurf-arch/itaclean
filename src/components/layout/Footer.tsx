@@ -12,6 +12,7 @@ import {
   FileText,
   Lock,
 } from 'lucide-react';
+import { InstagramIcon } from '../common/InstagramIcon';
 
 export const Footer: React.FC = () => {
   return (
@@ -69,6 +70,18 @@ export const Footer: React.FC = () => {
                 >
                   (11) 98765-4321
                   <p className="text-[11px] text-green-400/80">Atendimento WhatsApp Comercial</p>
+                </a>
+              </li>
+              <li className="flex items-start gap-2">
+                <InstagramIcon className="w-4 h-4 text-pink-400 shrink-0 mt-0.5" />
+                <a
+                  href="https://www.instagram.com/itacleanlimpeza/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-pink-300 font-medium text-white transition-colors"
+                >
+                  @itacleanlimpeza
+                  <p className="text-[11px] text-pink-400/80">Siga nosso perfil no Instagram</p>
                 </a>
               </li>
               <li className="flex items-start gap-2">
