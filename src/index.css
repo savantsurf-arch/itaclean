@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --primary: #003893;
+    --primary-dark: #002766;
+    --primary-light: #eaf1fc;
+    --accent: #009fe3;
+    --accent-hover: #0284c7;
+    --accent-light: #e0f4ff;
+    --surface: #ffffff;
+    --surface-alt: #f8fafc;
+    --border: #e2e8f0;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #f8fafc;
+    color: #0f172a;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Custom clean scrollbars */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+}
+
+/* Custom utility colors */
+.bg-brand-primary {
+  background-color: #003893;
+}
+.bg-brand-primary-dark {
+  background-color: #002766;
+}
+.bg-brand-accent {
+  background-color: #009fe3;
+}
+.text-brand-primary {
+  color: #003893;
+}
+.text-brand-accent {
+  color: #009fe3;
+}
+.border-brand-primary {
+  border-color: #003893;
+}
+.border-brand-accent {
+  border-color: #009fe3;
+}
+.hover\:bg-brand-primary:hover {
+  background-color: #003893;
+}
+.hover\:bg-brand-primary-dark:hover {
+  background-color: #00225d;
+}
+.hover\:bg-brand-accent:hover {
+  background-color: #0284c7;
+}
