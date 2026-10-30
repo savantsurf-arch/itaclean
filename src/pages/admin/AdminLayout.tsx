@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -13,7 +13,12 @@ import {
   Shield,
   Menu,
   X,
-  AlertTriangle,
+  Lock,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  KeyRound,
+  CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -27,39 +32,149 @@ const NAV_ITEMS = [
   { path: '/admin/configuracoes', label: 'Configurações da Loja', icon: Settings },
 ];
 
+const ADMIN_STORAGE_KEY = 'itaclean_admin_authenticated_session';
+const ADMIN_PASSWORD = (import.meta.env.VITE_ADMIN_PASSWORD as string) || '2913';
+
 export const AdminLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAdmin, login, logout } = useAuth();
+
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
-  // If user is not admin, show login / elevated role switcher
-  if (!isAdmin) {
+  // Verifica se o administrador já está autenticado nesta sessão
+  const [isSessionAuthenticated, setIsSessionAuthenticated] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem(ADMIN_STORAGE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  // Garante que o perfil admin esteja ativo quando autenticado pelo PIN
+  useEffect(() => {
+    if (isSessionAuthenticated && !isAdmin) {
+      login('admin@itaclean.com.br', 'admin123').catch(() => {});
+    }
+  }, [isSessionAuthenticated, isAdmin, login]);
+
+  // Função para validar a senha do Administrador (2913)
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+
+    if (pinInput.trim() === ADMIN_PASSWORD) {
+      setIsAuthenticating(true);
+      try {
+        sessionStorage.setItem(ADMIN_STORAGE_KEY, 'true');
+        setIsSessionAuthenticated(true);
+        await login('admin@itaclean.com.br', 'admin123');
+        setPinInput('');
+      } catch (err) {
+        console.error('Falha ao autenticar sessão admin:', err);
+      } finally {
+        setIsAuthenticating(false);
+      }
+    } else {
+      setAuthError('Senha incorreta. Acesso não autorizado.');
+      setPinInput('');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      sessionStorage.removeItem(ADMIN_STORAGE_KEY);
+      setIsSessionAuthenticated(false);
+      await logout();
+      navigate('/');
+    } catch (e) {
+      navigate('/');
+    }
+  };
+
+  // Se a senha 2913 ainda não foi informada nesta sessão, exibe a tela de bloqueio
+  if (!isSessionAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl text-center space-y-4">
-          <div className="w-16 h-16 bg-amber-500/10 text-amber-400 rounded-full flex items-center justify-center mx-auto">
-            <Shield className="w-8 h-8" />
+      <div className="min-h-screen bg-gradient-to-br from-[#00173d] via-[#00225d] to-slate-950 text-white flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-slate-900/90 backdrop-blur-md p-8 rounded-3xl border border-blue-900/50 shadow-2xl space-y-6">
+          {/* Logo e Ícone */}
+          <div className="text-center space-y-3">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#009fe3] to-[#003893] p-0.5 mx-auto shadow-lg shadow-sky-500/20">
+              <div className="w-full h-full bg-[#00225d] rounded-2xl flex items-center justify-center text-white">
+                <Lock className="w-8 h-8 text-[#009fe3]" />
+              </div>
+            </div>
+            <div>
+              <span className="text-[11px] font-black uppercase tracking-widest text-[#009fe3]">
+                Área Restrita
+              </span>
+              <h2 className="text-2xl font-black text-white tracking-tight">
+                Painel Administrativo
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                Digite a senha de administrador para gerenciar a loja ItaClean.
+              </p>
+            </div>
           </div>
-          <h2 className="text-xl font-black">Acesso Administrativo Restrito</h2>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Esta área é exclusiva para a equipe de gestão da Itaclean. Identifique-se com uma conta de administrador para prosseguir.
-          </p>
 
-          <div className="pt-2 space-y-2">
+          {authError && (
+            <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{authError}</span>
+            </div>
+          )}
+
+          {/* Formulário de Senha (2913) */}
+          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+            <div>
+              <label className="text-xs font-bold text-slate-300 block mb-1.5 flex items-center justify-between">
+                <span>Senha de Acesso:</span>
+                <span className="text-[10px] text-slate-500 font-normal">4 dígitos</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  autoFocus
+                  maxLength={10}
+                  placeholder="••••"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-center tracking-[0.5em] font-mono text-xl focus:outline-none focus:ring-2 focus:ring-[#009fe3] focus:border-transparent transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 transition-colors"
+                  aria-label={showPassword ? 'Ocultar senha' : 'Exibir senha'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
             <button
-              onClick={async () => {
-                await login('admin@itaclean.com.br', 'admin123');
-              }}
-              className="w-full py-3 bg-[#009fe3] hover:bg-sky-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-md"
+              type="submit"
+              disabled={isAuthenticating || !pinInput.trim()}
+              className="w-full py-3.5 bg-[#009fe3] hover:bg-sky-400 text-white font-black text-sm rounded-xl transition-all shadow-lg hover:shadow-xl cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
             >
-              Entrar como Administrador de Demonstração
+              <KeyRound className="w-4 h-4" />
+              <span>{isAuthenticating ? 'Validando...' : 'Acessar Painel de Controle'}</span>
             </button>
+          </form>
+
+          {/* Voltar para a Loja */}
+          <div className="pt-2 border-t border-slate-800 text-center">
             <Link
               to="/"
-              className="w-full py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-300 font-semibold text-xs rounded-xl transition-colors block"
+              className="text-xs text-slate-400 hover:text-[#009fe3] font-medium transition-colors inline-flex items-center gap-1.5"
             >
-              Voltar para a Loja Pública
+              <Store className="w-3.5 h-3.5" />
+              <span>Voltar para a Loja Pública</span>
             </Link>
           </div>
         </div>
@@ -126,14 +241,11 @@ export const AdminLayout: React.FC = () => {
             <span>Ver Loja Pública</span>
           </Link>
           <button
-            onClick={() => {
-              logout();
-              navigate('/login');
-            }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-red-300 hover:text-red-100 hover:bg-red-500/10 rounded-lg transition-colors"
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-red-300 hover:text-red-100 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
-            <span>Encerrar Sessão</span>
+            <span>Encerrar Sessão (Bloquear)</span>
           </button>
         </div>
       </aside>
@@ -171,10 +283,16 @@ export const AdminLayout: React.FC = () => {
                 })}
               </nav>
             </div>
-            <div>
-              <Link to="/" className="text-xs text-sky-300 block py-2">
+            <div className="space-y-2 border-t border-blue-900/60 pt-3">
+              <Link to="/" className="text-xs text-sky-300 block py-1">
                 ← Voltar para a Loja
               </Link>
+              <button
+                onClick={handleLogout}
+                className="text-xs text-red-300 block py-1 cursor-pointer"
+              >
+                Encerrar Sessão
+              </button>
             </div>
           </div>
         </div>
@@ -194,8 +312,9 @@ export const AdminLayout: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-slate-700">Painel de Controle</span>
             <span className="text-xs text-slate-400">•</span>
-            <span className="text-xs text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-              Sistema Operacional Ativo
+            <span className="text-xs text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              Sessão Autenticada
             </span>
           </div>
 
@@ -208,8 +327,15 @@ export const AdminLayout: React.FC = () => {
               <Store className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Visualizar Loja</span>
             </Link>
-            <div className="w-8 h-8 rounded-full bg-[#003893] text-white flex items-center justify-center font-bold text-xs">
-              A
+            <button
+              onClick={handleLogout}
+              title="Bloquear Painel"
+              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+            <div className="w-8 h-8 rounded-full bg-[#003893] text-white flex items-center justify-center font-bold text-xs shadow-sm">
+              ADM
             </div>
           </div>
         </header>

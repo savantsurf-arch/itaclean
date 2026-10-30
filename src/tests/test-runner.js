@@ -359,3 +359,17 @@ test('14. Deve tratar campos opcionais (complemento, referência e observações
   assert.ok(msg.includes('Referência: -'));
   assert.ok(msg.includes('Observações: Nenhuma'));
 });
+
+test('15. Deve validar a senha de acesso ao Dashboard de Administração (2913)', () => {
+  const ADMIN_PASSWORD = '2913';
+
+  const checkAdminPassword = (input) => {
+    return input.trim() === ADMIN_PASSWORD;
+  };
+
+  assert.equal(checkAdminPassword('2913'), true);
+  assert.equal(checkAdminPassword(' 2913 '), true);
+  assert.equal(checkAdminPassword('1234'), false);
+  assert.equal(checkAdminPassword(''), false);
+  assert.equal(checkAdminPassword('admin'), false);
+});
