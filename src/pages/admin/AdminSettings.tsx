@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Save, CheckCircle2, Shield, CreditCard, Truck, Database, RefreshCw, AlertCircle, ExternalLink } from 'lucide-react';
+import { Settings, Save, CheckCircle2, Shield, CreditCard, Truck, Database, RefreshCw, AlertCircle, ExternalLink, Loader2 } from 'lucide-react';
 import { getStoreSettings, saveStoreSettings } from '../../lib/data-service';
 import { testSupabaseConnection, SupabaseConnectionStatus } from '../../lib/supabase';
 import { StoreSettings } from '../../types';
@@ -7,6 +7,8 @@ import { StoreSettings } from '../../types';
 export const AdminSettings: React.FC = () => {
   const [settings, setSettings] = useState<StoreSettings | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [dbStatus, setDbStatus] = useState<SupabaseConnectionStatus | null>(null);
   const [isTestingDb, setIsTestingDb] = useState(false);
 
@@ -27,9 +29,23 @@ export const AdminSettings: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await saveStoreSettings(settings);
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 3000);
+    setIsSaving(true);
+    setSaveError(null);
+    setIsSaved(false);
+
+    try {
+      const saved = await saveStoreSettings(settings);
+      setSettings(saved);
+      setIsSaved(true);
+      // Recarrega do banco para comprovar a persistência
+      const reloaded = await getStoreSettings();
+      setSettings(reloaded);
+      setTimeout(() => setIsSaved(false), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || 'Erro ao persistir configurações no Supabase.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -44,9 +60,16 @@ export const AdminSettings: React.FC = () => {
       </div>
 
       {isSaved && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-bold flex items-center gap-2">
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-bold flex items-center gap-2 animate-fadeIn">
           <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-          <span>Configurações salvas e aplicadas em toda a loja virtual!</span>
+          <span>Configurações salvas e confirmadas com sucesso no banco de dados!</span>
+        </div>
+      )}
+
+      {saveError && (
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-bold flex items-center gap-2">
+          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+          <span>{saveError}</span>
         </div>
       )}
 
@@ -305,10 +328,20 @@ export const AdminSettings: React.FC = () => {
         <div className="flex justify-end">
           <button
             type="submit"
-            className="px-6 py-3 bg-[#003893] hover:bg-[#002766] text-white font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+            disabled={isSaving}
+            className="px-6 py-3 bg-[#003893] hover:bg-[#002766] disabled:opacity-50 text-white font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
           >
-            <Save className="w-4 h-4" />
-            <span>Salvar Todas as Configurações</span>
+            {isSaving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Persistindo no Banco de Dados...</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                <span>Salvar Todas as Configurações</span>
+              </>
+            )}
           </button>
         </div>
       </form>

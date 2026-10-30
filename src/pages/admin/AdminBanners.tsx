@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Image as ImageIcon, Plus, Trash2, Edit2 } from 'lucide-react';
+import { Image as ImageIcon, Plus, Trash2, Edit2, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { getBanners, saveBanner, deleteBanner } from '../../lib/data-service';
 import { Banner } from '../../types';
 
@@ -7,6 +7,9 @@ export const AdminBanners: React.FC = () => {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const [formTitle, setFormTitle] = useState('');
   const [formSubtitle, setFormSubtitle] = useState('');
@@ -17,7 +20,7 @@ export const AdminBanners: React.FC = () => {
   const [formOrder, setFormOrder] = useState('1');
 
   const loadData = async () => {
-    const list = await getBanners();
+    const list = await getBanners(false);
     setBanners(list);
   };
 
@@ -34,6 +37,7 @@ export const AdminBanners: React.FC = () => {
     setFormDesktopImage('https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?auto=format&fit=crop&w=1600&q=80');
     setFormBadge('Destaque');
     setFormOrder((banners.length + 1).toString());
+    setModalError(null);
     setIsModalOpen(true);
   };
 
@@ -46,6 +50,7 @@ export const AdminBanners: React.FC = () => {
     setFormDesktopImage(b.desktop_image_url);
     setFormBadge(b.badge_text || '');
     setFormOrder(b.sort_order.toString());
+    setModalError(null);
     setIsModalOpen(true);
   };
 
@@ -65,15 +70,41 @@ export const AdminBanners: React.FC = () => {
       is_active: true,
     };
 
-    await saveBanner(payload);
-    setIsModalOpen(false);
-    loadData();
+    setIsSaving(true);
+    setModalError(null);
+
+    try {
+      await saveBanner(payload);
+      setIsModalOpen(false);
+      setActionFeedback({
+        type: 'success',
+        message: `Banner "${payload.title}" salvo com sucesso no banco de dados!`,
+      });
+      await loadData();
+      setTimeout(() => setActionFeedback(null), 4000);
+    } catch (err: any) {
+      setModalError(err.message || 'Erro ao persistir banner no Supabase.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
     if (confirm('Deseja excluir este banner?')) {
-      await deleteBanner(id);
-      loadData();
+      try {
+        await deleteBanner(id);
+        setActionFeedback({
+          type: 'success',
+          message: 'Banner excluído com sucesso do banco de dados!',
+        });
+        await loadData();
+        setTimeout(() => setActionFeedback(null), 4000);
+      } catch (err: any) {
+        setActionFeedback({
+          type: 'error',
+          message: err.message || 'Falha ao excluir banner no Supabase.',
+        });
+      }
     }
   };
 
@@ -97,6 +128,23 @@ export const AdminBanners: React.FC = () => {
           <span>Novo Banner</span>
         </button>
       </div>
+
+      {actionFeedback && (
+        <div
+          className={`p-4 rounded-xl text-xs font-bold flex items-center gap-2 border animate-fadeIn ${
+            actionFeedback.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-rose-50 border-rose-200 text-rose-800'
+          }`}
+        >
+          {actionFeedback.type === 'success' ? (
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+          ) : (
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+          )}
+          <span>{actionFeedback.message}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {banners.map((ban) => (
@@ -161,6 +209,13 @@ export const AdminBanners: React.FC = () => {
               </h3>
               <button onClick={() => setIsModalOpen(false)}>✕</button>
             </div>
+
+            {modalError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-bold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{modalError}</span>
+              </div>
+            )}
 
             <form onSubmit={handleSave} className="space-y-4 text-xs">
               <div>
@@ -245,15 +300,23 @@ export const AdminBanners: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 rounded-lg font-bold"
+                  className="px-4 py-2 bg-slate-100 rounded-lg font-bold cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#003893] text-white rounded-lg font-bold"
+                  disabled={isSaving}
+                  className="px-5 py-2 bg-[#003893] hover:bg-[#002766] disabled:opacity-50 text-white rounded-lg font-bold cursor-pointer flex items-center gap-1.5"
                 >
-                  Salvar Banner
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Salvando no Banco...</span>
+                    </>
+                  ) : (
+                    <span>Salvar Banner</span>
+                  )}
                 </button>
               </div>
             </form>

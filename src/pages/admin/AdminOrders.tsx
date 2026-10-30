@@ -10,6 +10,8 @@ import {
   FileText,
   User,
   MapPin,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { getOrders, updateOrderStatus } from '../../lib/data-service';
 import { Order, OrderStatus, PaymentStatus } from '../../types';
@@ -26,6 +28,8 @@ export const AdminOrders: React.FC = () => {
   const [newTracking, setNewTracking] = useState('');
   const [newNotes, setNewNotes] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const loadOrders = async () => {
     const data = await getOrders();
@@ -41,6 +45,7 @@ export const AdminOrders: React.FC = () => {
     setNewStatus(ord.order_status);
     setNewTracking(ord.tracking_code || '');
     setNewNotes(ord.notes || '');
+    setModalError(null);
   };
 
   const handleUpdateStatus = async (e: React.FormEvent) => {
@@ -48,18 +53,30 @@ export const AdminOrders: React.FC = () => {
     if (!selectedOrder) return;
 
     setIsUpdating(true);
-    await updateOrderStatus(selectedOrder.id, {
-      order_status: newStatus,
-      tracking_code: newTracking.trim(),
-      notes: newNotes.trim(),
-      payment_status:
-        newStatus === 'payment_approved' || newStatus === 'processing' || newStatus === 'shipped' || newStatus === 'delivered'
-          ? 'paid'
-          : selectedOrder.payment_status,
-    });
-    setIsUpdating(false);
-    setSelectedOrder(null);
-    loadOrders();
+    setModalError(null);
+
+    try {
+      await updateOrderStatus(selectedOrder.id, {
+        order_status: newStatus,
+        tracking_code: newTracking.trim(),
+        notes: newNotes.trim(),
+        payment_status:
+          newStatus === 'payment_approved' || newStatus === 'processing' || newStatus === 'shipped' || newStatus === 'delivered'
+            ? 'paid'
+            : selectedOrder.payment_status,
+      });
+      setSelectedOrder(null);
+      setActionFeedback({
+        type: 'success',
+        message: `Status do pedido ${selectedOrder.order_number} atualizado com sucesso no banco de dados!`,
+      });
+      await loadOrders();
+      setTimeout(() => setActionFeedback(null), 4000);
+    } catch (err: any) {
+      setModalError(err.message || 'Falha ao atualizar status do pedido no Supabase.');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const filtered = orders.filter((o) => {
@@ -83,6 +100,23 @@ export const AdminOrders: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {actionFeedback && (
+        <div
+          className={`p-4 rounded-xl text-xs font-bold flex items-center gap-2 border animate-fadeIn ${
+            actionFeedback.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-rose-50 border-rose-200 text-rose-800'
+          }`}
+        >
+          {actionFeedback.type === 'success' ? (
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+          ) : (
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+          )}
+          <span>{actionFeedback.message}</span>
+        </div>
+      )}
 
       {/* FILTER BAR */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row gap-3">
@@ -236,6 +270,13 @@ export const AdminOrders: React.FC = () => {
             <form onSubmit={handleUpdateStatus} className="pt-3 border-t border-slate-200 space-y-3 text-xs">
               <h4 className="font-bold text-slate-900 uppercase">Atualizar Andamento</h4>
 
+              {modalError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-bold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{modalError}</span>
+                </div>
+              )}
+
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Status Operacional *</label>
                 <select
@@ -281,16 +322,23 @@ export const AdminOrders: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setSelectedOrder(null)}
-                  className="px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-lg"
+                  className="px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-lg cursor-pointer"
                 >
                   Fechar
                 </button>
                 <button
                   type="submit"
                   disabled={isUpdating}
-                  className="px-5 py-2 bg-[#003893] hover:bg-[#002766] text-white font-bold rounded-lg shadow-sm"
+                  className="px-5 py-2 bg-[#003893] hover:bg-[#002766] disabled:opacity-50 text-white font-bold rounded-lg shadow-sm cursor-pointer flex items-center gap-1.5"
                 >
-                  {isUpdating ? 'Salvando...' : 'Salvar Alterações do Pedido'}
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Salvando no Banco...</span>
+                    </>
+                  ) : (
+                    <span>Salvar Alterações do Pedido</span>
+                  )}
                 </button>
               </div>
             </form>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Layers, Plus, Edit2, Trash2, Check, X } from 'lucide-react';
-import { getCategories, saveCategory } from '../../lib/data-service';
+import { Layers, Plus, Edit2, Trash2, Check, X, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { getCategories, saveCategory, deleteCategory } from '../../lib/data-service';
 import { Category } from '../../types';
 import { slugify } from '../../lib/utils';
 
@@ -8,6 +8,9 @@ export const AdminCategories: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const [formName, setFormName] = useState('');
   const [formDesc, setFormDesc] = useState('');
@@ -15,7 +18,7 @@ export const AdminCategories: React.FC = () => {
   const [formIsActive, setFormIsActive] = useState(true);
 
   const loadData = async () => {
-    const cats = await getCategories();
+    const cats = await getCategories(false);
     setCategories(cats);
   };
 
@@ -29,6 +32,7 @@ export const AdminCategories: React.FC = () => {
     setFormDesc('');
     setFormOrder((categories.length + 1).toString());
     setFormIsActive(true);
+    setModalError(null);
     setIsModalOpen(true);
   };
 
@@ -38,6 +42,7 @@ export const AdminCategories: React.FC = () => {
     setFormDesc(c.description || '');
     setFormOrder(c.sort_order.toString());
     setFormIsActive(c.is_active);
+    setModalError(null);
     setIsModalOpen(true);
   };
 
@@ -54,9 +59,42 @@ export const AdminCategories: React.FC = () => {
       is_active: formIsActive,
     };
 
-    await saveCategory(payload);
-    setIsModalOpen(false);
-    loadData();
+    setIsSaving(true);
+    setModalError(null);
+
+    try {
+      await saveCategory(payload);
+      setIsModalOpen(false);
+      setActionFeedback({
+        type: 'success',
+        message: `Categoria "${payload.name}" salva com sucesso no banco de dados!`,
+      });
+      await loadData();
+      setTimeout(() => setActionFeedback(null), 4000);
+    } catch (err: any) {
+      setModalError(err.message || 'Erro ao persistir categoria no Supabase.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Deseja realmente excluir esta categoria?')) {
+      try {
+        await deleteCategory(id);
+        setActionFeedback({
+          type: 'success',
+          message: 'Categoria excluída com sucesso do banco de dados!',
+        });
+        await loadData();
+        setTimeout(() => setActionFeedback(null), 4000);
+      } catch (err: any) {
+        setActionFeedback({
+          type: 'error',
+          message: err.message || 'Falha ao excluir categoria no Supabase.',
+        });
+      }
+    }
   };
 
   return (
@@ -79,6 +117,23 @@ export const AdminCategories: React.FC = () => {
           <span>Nova Categoria</span>
         </button>
       </div>
+
+      {actionFeedback && (
+        <div
+          className={`p-4 rounded-xl text-xs font-bold flex items-center gap-2 border animate-fadeIn ${
+            actionFeedback.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-rose-50 border-rose-200 text-rose-800'
+          }`}
+        >
+          {actionFeedback.type === 'success' ? (
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+          ) : (
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+          )}
+          <span>{actionFeedback.message}</span>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
         <table className="w-full text-left text-xs">
@@ -113,12 +168,22 @@ export const AdminCategories: React.FC = () => {
                   )}
                 </td>
                 <td className="py-3 px-4 text-right">
-                  <button
-                    onClick={() => openEditModal(cat)}
-                    className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg cursor-pointer transition-colors"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center justify-end gap-1.5">
+                    <button
+                      onClick={() => openEditModal(cat)}
+                      className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg cursor-pointer transition-colors"
+                      title="Editar categoria"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(cat.id)}
+                      className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg cursor-pointer transition-colors"
+                      title="Excluir categoria"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -138,6 +203,13 @@ export const AdminCategories: React.FC = () => {
                 ✕
               </button>
             </div>
+
+            {modalError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-bold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{modalError}</span>
+              </div>
+            )}
 
             <form onSubmit={handleSave} className="space-y-4 text-xs">
               <div>
@@ -189,15 +261,23 @@ export const AdminCategories: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-lg"
+                  className="px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-lg cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#003893] text-white font-bold rounded-lg"
+                  disabled={isSaving}
+                  className="px-5 py-2 bg-[#003893] hover:bg-[#002766] disabled:opacity-50 text-white font-bold rounded-lg cursor-pointer flex items-center gap-1.5"
                 >
-                  Salvar Categoria
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Salvando no Banco...</span>
+                    </>
+                  ) : (
+                    <span>Salvar Categoria</span>
+                  )}
                 </button>
               </div>
             </form>

@@ -10,6 +10,9 @@ import {
   X,
   AlertTriangle,
   Star,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 import { getProducts, getCategories, saveProduct, deleteProduct } from '../../lib/data-service';
 import { Product, Category } from '../../types';
@@ -21,6 +24,9 @@ export const AdminProducts: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -45,8 +51,8 @@ export const AdminProducts: React.FC = () => {
   const loadData = async () => {
     setIsLoading(true);
     const [prodRes, catRes] = await Promise.all([
-      getProducts({ pageSize: 100 }),
-      getCategories(),
+      getProducts({ pageSize: 100, activeOnly: false }),
+      getCategories(false),
     ]);
     setProducts(prodRes.products);
     setCategories(catRes);
@@ -73,6 +79,7 @@ export const AdminProducts: React.FC = () => {
     setFormImage('https://images.unsplash.com/photo-1585421514738-01798e348b17?auto=format&fit=crop&w=800&q=80');
     setFormIsFeatured(false);
     setFormIsActive(true);
+    setModalError(null);
     setIsModalOpen(true);
   };
 
@@ -92,6 +99,7 @@ export const AdminProducts: React.FC = () => {
     setFormImage(p.images[0] || '');
     setFormIsFeatured(p.is_featured);
     setFormIsActive(p.is_active);
+    setModalError(null);
     setIsModalOpen(true);
   };
 
@@ -123,15 +131,41 @@ export const AdminProducts: React.FC = () => {
       created_at: editingProduct ? editingProduct.created_at : new Date().toISOString(),
     };
 
-    await saveProduct(productPayload);
-    setIsModalOpen(false);
-    loadData();
+    setIsSaving(true);
+    setModalError(null);
+
+    try {
+      await saveProduct(productPayload);
+      setIsModalOpen(false);
+      setActionFeedback({
+        type: 'success',
+        message: `Produto "${productPayload.name}" salvo e persistido com sucesso no banco de dados!`,
+      });
+      await loadData();
+      setTimeout(() => setActionFeedback(null), 4000);
+    } catch (err: any) {
+      setModalError(err.message || 'Falha ao salvar produto no Supabase.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
     if (confirm('Tem certeza que deseja excluir este produto do catálogo?')) {
-      await deleteProduct(id);
-      loadData();
+      try {
+        await deleteProduct(id);
+        setActionFeedback({
+          type: 'success',
+          message: 'Produto excluído com sucesso do banco de dados!',
+        });
+        await loadData();
+        setTimeout(() => setActionFeedback(null), 4000);
+      } catch (err: any) {
+        setActionFeedback({
+          type: 'error',
+          message: err.message || 'Falha ao excluir produto no Supabase.',
+        });
+      }
     }
   };
 
@@ -196,6 +230,23 @@ export const AdminProducts: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {actionFeedback && (
+        <div
+          className={`p-4 rounded-xl text-xs font-bold flex items-center gap-2 border animate-fadeIn ${
+            actionFeedback.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-rose-50 border-rose-200 text-rose-800'
+          }`}
+        >
+          {actionFeedback.type === 'success' ? (
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+          ) : (
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+          )}
+          <span>{actionFeedback.message}</span>
+        </div>
+      )}
 
       {/* SEARCH AND CATEGORY FILTER BAR */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row gap-3">
@@ -341,6 +392,13 @@ export const AdminProducts: React.FC = () => {
                 ✕
               </button>
             </div>
+
+            {modalError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-bold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{modalError}</span>
+              </div>
+            )}
 
             <form onSubmit={handleSaveProduct} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -506,9 +564,17 @@ export const AdminProducts: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#003893] hover:bg-[#002766] text-white font-bold rounded-lg shadow-sm cursor-pointer"
+                  disabled={isSaving}
+                  className="px-5 py-2 bg-[#003893] hover:bg-[#002766] disabled:opacity-50 text-white font-bold rounded-lg shadow-sm cursor-pointer flex items-center gap-1.5"
                 >
-                  Salvar Produto
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Gravando no Banco...</span>
+                    </>
+                  ) : (
+                    <span>{editingProduct ? 'Salvar Alterações' : 'Cadastrar Produto'}</span>
+                  )}
                 </button>
               </div>
             </form>

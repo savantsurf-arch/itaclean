@@ -72,12 +72,15 @@ export async function getStoreSettings(): Promise<StoreSettings> {
 
 export async function saveStoreSettings(settings: StoreSettings): Promise<StoreSettings> {
   if (isSupabaseConfigured && supabase) {
-    try {
-      await supabase
-        .from('store_settings')
-        .upsert({ key: 'store_info', value: settings, updated_at: new Date().toISOString() });
-    } catch (e) {
-      console.error('Erro ao salvar settings no Supabase:', e);
+    const { error } = await supabase
+      .from('store_settings')
+      .upsert(
+        { key: 'store_info', value: settings, updated_at: new Date().toISOString() },
+        { onConflict: 'key' }
+      );
+    if (error) {
+      console.error('Erro ao salvar settings no Supabase:', error);
+      throw new Error(`Falha ao salvar configurações no Supabase: ${error.message}`);
     }
   }
   setLocalData(STORAGE_KEYS.SETTINGS, settings);
@@ -87,14 +90,19 @@ export async function saveStoreSettings(settings: StoreSettings): Promise<StoreS
 // ----------------------------------------------------
 // CATEGORIES
 // ----------------------------------------------------
-export async function getCategories(): Promise<Category[]> {
+export async function getCategories(activeOnly = false): Promise<Category[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('categories')
         .select('*')
-        .eq('is_active', true)
         .order('sort_order', { ascending: true });
+
+      if (activeOnly) {
+        query = query.eq('is_active', true);
+      }
+
+      const { data, error } = await query;
 
       if (!error && data && data.length > 0) {
         return data as Category[];
@@ -103,10 +111,31 @@ export async function getCategories(): Promise<Category[]> {
       console.warn('Supabase categories error, fallback to local:', e);
     }
   }
-  return getLocalData<Category[]>(STORAGE_KEYS.CATEGORIES, INITIAL_CATEGORIES);
+  const local = getLocalData<Category[]>(STORAGE_KEYS.CATEGORIES, INITIAL_CATEGORIES);
+  return activeOnly ? local.filter((c) => c.is_active) : local;
 }
 
 export async function saveCategory(category: Category): Promise<Category> {
+  if (isSupabaseConfigured && supabase) {
+    const payload = {
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      description: category.description || '',
+      sort_order: Number(category.sort_order) || 0,
+      is_active: category.is_active ?? true,
+      image_url: category.image_url || null,
+      icon_name: category.icon_name || null,
+      parent_id: category.parent_id || null,
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from('categories').upsert(payload, { onConflict: 'id' });
+    if (error) {
+      console.error('Erro ao salvar categoria no Supabase:', error);
+      throw new Error(`Falha ao salvar categoria no Supabase: ${error.message}`);
+    }
+  }
+
   const current = getLocalData<Category[]>(STORAGE_KEYS.CATEGORIES, INITIAL_CATEGORIES);
   const index = current.findIndex((c) => c.id === category.id);
   let updated: Category[];
@@ -117,15 +146,21 @@ export async function saveCategory(category: Category): Promise<Category> {
     updated = [category, ...current];
   }
   setLocalData(STORAGE_KEYS.CATEGORIES, updated);
+  return category;
+}
 
+export async function deleteCategory(id: string): Promise<void> {
   if (isSupabaseConfigured && supabase) {
-    try {
-      await supabase.from('categories').upsert(category);
-    } catch (e) {
-      console.error('Erro ao sincronizar categoria no Supabase:', e);
+    const { error } = await supabase.from('categories').delete().eq('id', id);
+    if (error) {
+      console.error('Erro ao excluir categoria no Supabase:', error);
+      throw new Error(`Falha ao excluir categoria no Supabase: ${error.message}`);
     }
   }
-  return category;
+
+  const current = getLocalData<Category[]>(STORAGE_KEYS.CATEGORIES, INITIAL_CATEGORIES);
+  const updated = current.filter((c) => c.id !== id);
+  setLocalData(STORAGE_KEYS.CATEGORIES, updated);
 }
 
 // ----------------------------------------------------
@@ -150,51 +185,70 @@ export async function getBrands(): Promise<Brand[]> {
 // ----------------------------------------------------
 // BANNERS
 // ----------------------------------------------------
-export async function getBanners(): Promise<Banner[]> {
+export async function getBanners(activeOnly = false): Promise<Banner[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('banners')
         .select('*')
-        .eq('is_active', true)
         .order('sort_order', { ascending: true });
+
+      if (activeOnly) {
+        query = query.eq('is_active', true);
+      }
+
+      const { data, error } = await query;
       if (!error && data && data.length > 0) return data as Banner[];
     } catch (e) {
       console.warn('Supabase banners error, fallback to local:', e);
     }
   }
-  return getLocalData<Banner[]>(STORAGE_KEYS.BANNERS, INITIAL_BANNERS);
+  const local = getLocalData<Banner[]>(STORAGE_KEYS.BANNERS, INITIAL_BANNERS);
+  return activeOnly ? local.filter((b) => b.is_active) : local;
 }
 
 export async function saveBanner(banner: Banner): Promise<Banner> {
+  if (isSupabaseConfigured && supabase) {
+    const payload = {
+      id: banner.id,
+      title: banner.title,
+      subtitle: banner.subtitle || '',
+      button_text: banner.button_text || '',
+      link_url: banner.link_url,
+      desktop_image_url: banner.desktop_image_url,
+      mobile_image_url: banner.mobile_image_url || null,
+      badge_text: banner.badge_text || null,
+      sort_order: Number(banner.sort_order) || 0,
+      is_active: banner.is_active ?? true,
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from('banners').upsert(payload, { onConflict: 'id' });
+    if (error) {
+      console.error('Supabase banner save error:', error);
+      throw new Error(`Falha ao salvar banner no Supabase: ${error.message}`);
+    }
+  }
+
   const current = getLocalData<Banner[]>(STORAGE_KEYS.BANNERS, INITIAL_BANNERS);
   const index = current.findIndex((b) => b.id === banner.id);
   const updated = index >= 0 ? [...current] : [banner, ...current];
   if (index >= 0) updated[index] = banner;
   setLocalData(STORAGE_KEYS.BANNERS, updated);
-
-  if (isSupabaseConfigured && supabase) {
-    try {
-      await supabase.from('banners').upsert(banner);
-    } catch (e) {
-      console.error('Supabase banner save error:', e);
-    }
-  }
   return banner;
 }
 
 export async function deleteBanner(id: string): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase.from('banners').delete().eq('id', id);
+    if (error) {
+      console.error('Supabase banner delete error:', error);
+      throw new Error(`Falha ao excluir banner no Supabase: ${error.message}`);
+    }
+  }
+
   const current = getLocalData<Banner[]>(STORAGE_KEYS.BANNERS, INITIAL_BANNERS);
   const updated = current.filter((b) => b.id !== id);
   setLocalData(STORAGE_KEYS.BANNERS, updated);
-
-  if (isSupabaseConfigured && supabase) {
-    try {
-      await supabase.from('banners').delete().eq('id', id);
-    } catch (e) {
-      console.error('Supabase banner delete error:', e);
-    }
-  }
 }
 
 // ----------------------------------------------------
@@ -209,6 +263,7 @@ export interface ProductFilterParams {
   inStockOnly?: boolean;
   featuredOnly?: boolean;
   onSaleOnly?: boolean;
+  activeOnly?: boolean;
   sortBy?: 'relevance' | 'price_asc' | 'price_desc' | 'name_asc' | 'newest';
   page?: number;
   pageSize?: number;
@@ -226,16 +281,21 @@ export async function getProducts(params: ProductFilterParams = {}): Promise<Pro
 
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('is_active', true);
+      let query = supabase.from('products').select('*');
+      if (params.activeOnly !== false) {
+        query = query.eq('is_active', true);
+      }
+      const { data, error } = await query;
       if (!error && data && data.length > 0) {
         products = data as Product[];
       }
     } catch (e) {
       console.warn('Supabase products error, fallback to local:', e);
     }
+  }
+
+  if (params.activeOnly !== false) {
+    products = products.filter((p) => p.is_active);
   }
 
   const categories = await getCategories();
@@ -370,67 +430,75 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
 }
 
 export async function saveProduct(product: Product): Promise<Product> {
+  if (isSupabaseConfigured && supabase) {
+    const payload: any = {
+      id: product.id,
+      name: product.name,
+      slug: product.slug,
+      sku: product.sku,
+      category_id: product.category_id || null,
+      brand_id: product.brand_id || null,
+      price: Number(product.price) || 0,
+      sale_price:
+        product.sale_price !== undefined && product.sale_price !== null && String(product.sale_price) !== ''
+          ? Number(product.sale_price)
+          : null,
+      stock_quantity: Number(product.stock_quantity) || 0,
+      low_stock_threshold: Number(product.low_stock_threshold) || 5,
+      description: product.description || '',
+      short_description: product.short_description || '',
+      dilution_info: product.dilution_info || '',
+      safety_info: product.safety_info || '',
+      technical_info: product.technical_info || {},
+      images: product.images && product.images.length > 0 ? product.images : ['/itaclean-logo.jpg'],
+      is_active: product.is_active ?? true,
+      is_featured: product.is_featured ?? false,
+      is_new: product.is_new ?? false,
+      weight: product.weight ? Number(product.weight) : 0.5,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from('products').upsert(payload, { onConflict: 'id' });
+    if (error) {
+      console.error('Supabase product save error:', error);
+      throw new Error(`Falha ao salvar produto no Supabase: ${error.message}`);
+    }
+  }
+
   const current = getLocalData<Product[]>(STORAGE_KEYS.PRODUCTS, INITIAL_PRODUCTS);
   const index = current.findIndex((p) => p.id === product.id);
   const updated = index >= 0 ? [...current] : [product, ...current];
   if (index >= 0) updated[index] = product;
   setLocalData(STORAGE_KEYS.PRODUCTS, updated);
 
-  if (isSupabaseConfigured && supabase) {
-    try {
-      await supabase.from('products').upsert({
-        id: product.id,
-        name: product.name,
-        slug: product.slug,
-        sku: product.sku,
-        category_id: product.category_id,
-        brand_id: product.brand_id,
-        price: product.price,
-        sale_price: product.sale_price,
-        stock_quantity: product.stock_quantity,
-        low_stock_threshold: product.low_stock_threshold,
-        description: product.description,
-        short_description: product.short_description,
-        dilution_info: product.dilution_info,
-        safety_info: product.safety_info,
-        technical_info: product.technical_info,
-        is_active: product.is_active,
-        is_featured: product.is_featured,
-        is_new: product.is_new,
-        weight: product.weight,
-      });
-    } catch (e) {
-      console.error('Supabase product save error:', e);
-    }
-  }
-
   return product;
 }
 
 export async function deleteProduct(id: string): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase.from('products').delete().eq('id', id);
+    if (error) {
+      console.error('Supabase product delete error:', error);
+      throw new Error(`Falha ao excluir produto no Supabase: ${error.message}`);
+    }
+  }
+
   const current = getLocalData<Product[]>(STORAGE_KEYS.PRODUCTS, INITIAL_PRODUCTS);
   const updated = current.filter((p) => p.id !== id);
   setLocalData(STORAGE_KEYS.PRODUCTS, updated);
-
-  if (isSupabaseConfigured && supabase) {
-    try {
-      await supabase.from('products').delete().eq('id', id);
-    } catch (e) {
-      console.error('Supabase product delete error:', e);
-    }
-  }
 }
 
 // ----------------------------------------------------
 // COUPONS
 // ----------------------------------------------------
-export async function getCoupons(): Promise<Coupon[]> {
+export async function getCoupons(activeOnly = false): Promise<Coupon[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase
-        .from('coupons')
-        .select('*')
-        .eq('is_active', true);
+      let query = supabase.from('coupons').select('*');
+      if (activeOnly) {
+        query = query.eq('is_active', true);
+      }
+      const { data, error } = await query;
       if (!error && data && data.length > 0) {
         return data as Coupon[];
       }
@@ -438,7 +506,8 @@ export async function getCoupons(): Promise<Coupon[]> {
       console.warn('Supabase coupons error, fallback to local:', e);
     }
   }
-  return getLocalData<Coupon[]>(STORAGE_KEYS.COUPONS, INITIAL_COUPONS);
+  const local = getLocalData<Coupon[]>(STORAGE_KEYS.COUPONS, INITIAL_COUPONS);
+  return activeOnly ? local.filter((c) => c.is_active) : local;
 }
 
 export async function validateCoupon(
@@ -487,6 +556,28 @@ export async function validateCoupon(
 }
 
 export async function saveCoupon(coupon: Coupon): Promise<Coupon> {
+  if (isSupabaseConfigured && supabase) {
+    const payload = {
+      id: coupon.id,
+      code: coupon.code.toUpperCase().trim(),
+      discount_type: coupon.discount_type,
+      discount_value: Number(coupon.discount_value),
+      min_order_amount: coupon.min_order_amount ? Number(coupon.min_order_amount) : 0,
+      max_discount_amount: coupon.max_discount_amount ? Number(coupon.max_discount_amount) : null,
+      usage_limit: coupon.usage_limit ? Number(coupon.usage_limit) : null,
+      times_used: Number(coupon.times_used) || 0,
+      expires_at: coupon.expires_at || null,
+      is_active: coupon.is_active ?? true,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from('coupons').upsert(payload, { onConflict: 'id' });
+    if (error) {
+      console.error('Supabase coupon save error:', error);
+      throw new Error(`Falha ao salvar cupom no Supabase: ${error.message}`);
+    }
+  }
+
   const current = getLocalData<Coupon[]>(STORAGE_KEYS.COUPONS, INITIAL_COUPONS);
   const index = current.findIndex((c) => c.id === coupon.id);
   const updated = index >= 0 ? [...current] : [coupon, ...current];
@@ -496,6 +587,14 @@ export async function saveCoupon(coupon: Coupon): Promise<Coupon> {
 }
 
 export async function deleteCoupon(id: string): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase.from('coupons').delete().eq('id', id);
+    if (error) {
+      console.error('Supabase coupon delete error:', error);
+      throw new Error(`Falha ao excluir cupom no Supabase: ${error.message}`);
+    }
+  }
+
   const current = getLocalData<Coupon[]>(STORAGE_KEYS.COUPONS, INITIAL_COUPONS);
   const updated = current.filter((c) => c.id !== id);
   setLocalData(STORAGE_KEYS.COUPONS, updated);
@@ -648,6 +747,22 @@ export async function updateOrderStatus(
     notes?: string;
   }
 ): Promise<Order | null> {
+  if (isSupabaseConfigured && supabase) {
+    const dbUpdates: any = {
+      updated_at: new Date().toISOString(),
+    };
+    if (updates.order_status) dbUpdates.status = updates.order_status;
+    if (updates.payment_status) dbUpdates.payment_status = updates.payment_status;
+    if (updates.tracking_code !== undefined) dbUpdates.tracking_code = updates.tracking_code;
+    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+
+    const { error } = await supabase.from('orders').update(dbUpdates).eq('id', orderId);
+    if (error) {
+      console.error('Supabase update order error:', error);
+      throw new Error(`Falha ao atualizar pedido no Supabase: ${error.message}`);
+    }
+  }
+
   const current = getLocalData<Order[]>(STORAGE_KEYS.ORDERS, INITIAL_ORDERS);
   const index = current.findIndex((o) => o.id === orderId);
   if (index === -1) return null;
@@ -660,14 +775,6 @@ export async function updateOrderStatus(
 
   current[index] = updatedOrder;
   setLocalData(STORAGE_KEYS.ORDERS, current);
-
-  if (isSupabaseConfigured && supabase) {
-    try {
-      await supabase.from('orders').update(updates).eq('id', orderId);
-    } catch (e) {
-      console.error('Supabase update order error:', e);
-    }
-  }
 
   return updatedOrder;
 }

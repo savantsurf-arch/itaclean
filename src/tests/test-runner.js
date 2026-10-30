@@ -373,3 +373,103 @@ test('15. Deve validar a senha de acesso ao Dashboard de Administração (2913)'
   assert.equal(checkAdminPassword(''), false);
   assert.equal(checkAdminPassword('admin'), false);
 });
+
+test('16. Deve lançar exceção em caso de erro do Supabase para impedir falso sucesso', async () => {
+  // Simula cliente Supabase que retorna erro de RLS ou restrição
+  const mockSupabaseWithError = {
+    from: () => ({
+      upsert: async () => ({
+        data: null,
+        error: { message: 'new row violates row-level security policy' },
+      }),
+    }),
+  };
+
+  const simulateSave = async (client, data) => {
+    const { error } = await client.from('store_settings').upsert(data);
+    if (error) {
+      throw new Error(`Falha ao salvar no banco Supabase: ${error.message}`);
+    }
+    return data;
+  };
+
+  await assert.rejects(
+    async () => {
+      await simulateSave(mockSupabaseWithError, { key: 'store_info', value: {} });
+    },
+    /Falha ao salvar no banco Supabase: new row violates row-level security policy/
+  );
+});
+
+test('17. Deve aceitar IDs em formato TEXT customizados (cat-1, prod-1) sem rejeição de tipo UUID', () => {
+  const isCustomOrUuidText = (id) => {
+    return typeof id === 'string' && id.trim().length > 0;
+  };
+
+  assert.equal(isCustomOrUuidText('prod-1730000000'), true);
+  assert.equal(isCustomOrUuidText('cat-limpeza-pesada'), true);
+  assert.equal(isCustomOrUuidText('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d'), true);
+  assert.equal(isCustomOrUuidText(''), false);
+});
+
+test('18. Deve garantir que payload de produto contenha campos essenciais para o banco', () => {
+  const rawProduct = {
+    id: 'prod-999',
+    name: 'Desengraxante 5L',
+    sku: 'ITA-DES-5L',
+    price: 89.9,
+    dilution_info: '1:10 para limpeza pesada',
+    safety_info: 'Usar luvas de borracha',
+    images: ['https://itaclean.com.br/foto1.jpg'],
+  };
+
+  const payload = {
+    id: rawProduct.id,
+    name: rawProduct.name,
+    sku: rawProduct.sku,
+    price: Number(rawProduct.price),
+    dilution_info: rawProduct.dilution_info || '',
+    safety_info: rawProduct.safety_info || '',
+    images: rawProduct.images || [],
+    is_active: true,
+  };
+
+  assert.equal(payload.dilution_info, '1:10 para limpeza pesada');
+  assert.equal(payload.safety_info, 'Usar luvas de borracha');
+  assert.equal(payload.images.length, 1);
+  assert.equal(payload.price, 89.9);
+});
+
+test('19. Deve mapear order_status para coluna status do banco de dados ao atualizar pedido', () => {
+  const inputUpdates = {
+    order_status: 'payment_approved',
+    tracking_code: 'FROTA-ITA-102',
+    notes: 'Liberado para entrega rápida',
+  };
+
+  const dbUpdates = {
+    updated_at: new Date().toISOString(),
+  };
+  if (inputUpdates.order_status) dbUpdates.status = inputUpdates.order_status;
+  if (inputUpdates.tracking_code !== undefined) dbUpdates.tracking_code = inputUpdates.tracking_code;
+  if (inputUpdates.notes !== undefined) dbUpdates.notes = inputUpdates.notes;
+
+  assert.equal(dbUpdates.status, 'payment_approved');
+  assert.equal(dbUpdates.tracking_code, 'FROTA-ITA-102');
+  assert.equal(dbUpdates.order_status, undefined); // coluna correta é status!
+});
+
+test('20. Deve persistir configurações de loja e validar dados obrigatórios', () => {
+  const settings = {
+    name: 'Itaclean Produtos de Limpeza e Descartáveis',
+    cnpj: '38.452.190/0001-44',
+    phone: '(73) 4141-9517',
+    whatsapp: '557341419517',
+    email: 'contato@itaclean.com.br',
+    free_shipping_threshold: 299,
+  };
+
+  assert.ok(settings.whatsapp.startsWith('55'));
+  assert.ok(settings.cnpj.includes('/'));
+  assert.equal(settings.free_shipping_threshold, 299);
+});

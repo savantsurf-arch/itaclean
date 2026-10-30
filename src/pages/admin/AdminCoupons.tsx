@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Tag, Plus, Trash2, Check, X } from 'lucide-react';
+import { Tag, Plus, Trash2, Check, X, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { getCoupons, saveCoupon, deleteCoupon } from '../../lib/data-service';
 import { Coupon } from '../../types';
 import { formatCurrency } from '../../lib/utils';
@@ -7,6 +7,9 @@ import { formatCurrency } from '../../lib/utils';
 export const AdminCoupons: React.FC = () => {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const [formCode, setFormCode] = useState('');
   const [formType, setFormType] = useState<'percentage' | 'fixed'>('percentage');
@@ -15,7 +18,7 @@ export const AdminCoupons: React.FC = () => {
   const [formLimit, setFormLimit] = useState('500');
 
   const loadData = async () => {
-    const list = await getCoupons();
+    const list = await getCoupons(false);
     setCoupons(list);
   };
 
@@ -38,15 +41,41 @@ export const AdminCoupons: React.FC = () => {
       is_active: true,
     };
 
-    await saveCoupon(newCoupon);
-    setIsModalOpen(false);
-    loadData();
+    setIsSaving(true);
+    setModalError(null);
+
+    try {
+      await saveCoupon(newCoupon);
+      setIsModalOpen(false);
+      setActionFeedback({
+        type: 'success',
+        message: `Cupom "${newCoupon.code}" cadastrado e persistido com sucesso!`,
+      });
+      await loadData();
+      setTimeout(() => setActionFeedback(null), 4000);
+    } catch (err: any) {
+      setModalError(err.message || 'Erro ao persistir cupom no Supabase.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
     if (confirm('Deseja excluir este cupom?')) {
-      await deleteCoupon(id);
-      loadData();
+      try {
+        await deleteCoupon(id);
+        setActionFeedback({
+          type: 'success',
+          message: 'Cupom excluído com sucesso do banco de dados!',
+        });
+        await loadData();
+        setTimeout(() => setActionFeedback(null), 4000);
+      } catch (err: any) {
+        setActionFeedback({
+          type: 'error',
+          message: err.message || 'Falha ao excluir cupom no Supabase.',
+        });
+      }
     }
   };
 
@@ -63,13 +92,33 @@ export const AdminCoupons: React.FC = () => {
         </div>
 
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setModalError(null);
+            setIsModalOpen(true);
+          }}
           className="px-4 py-2 bg-[#003893] hover:bg-[#002766] text-white text-xs font-bold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>Criar Cupom</span>
         </button>
       </div>
+
+      {actionFeedback && (
+        <div
+          className={`p-4 rounded-xl text-xs font-bold flex items-center gap-2 border animate-fadeIn ${
+            actionFeedback.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-rose-50 border-rose-200 text-rose-800'
+          }`}
+        >
+          {actionFeedback.type === 'success' ? (
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+          ) : (
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+          )}
+          <span>{actionFeedback.message}</span>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
         <table className="w-full text-left text-xs">
@@ -131,6 +180,13 @@ export const AdminCoupons: React.FC = () => {
               <button onClick={() => setIsModalOpen(false)}>✕</button>
             </div>
 
+            {modalError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-bold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{modalError}</span>
+              </div>
+            )}
+
             <form onSubmit={handleCreateCoupon} className="space-y-4 text-xs">
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Código do Cupom *</label>
@@ -182,15 +238,23 @@ export const AdminCoupons: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 rounded-lg font-bold"
+                  className="px-4 py-2 bg-slate-100 rounded-lg font-bold cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#003893] text-white rounded-lg font-bold"
+                  disabled={isSaving}
+                  className="px-5 py-2 bg-[#003893] hover:bg-[#002766] disabled:opacity-50 text-white rounded-lg font-bold cursor-pointer flex items-center gap-1.5"
                 >
-                  Criar Cupom
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Salvando no Banco...</span>
+                    </>
+                  ) : (
+                    <span>Criar Cupom</span>
+                  )}
                 </button>
               </div>
             </form>
