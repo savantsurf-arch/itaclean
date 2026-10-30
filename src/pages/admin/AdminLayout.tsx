@@ -40,7 +40,7 @@ const ADMIN_PASSWORD = (import.meta.env.VITE_ADMIN_PASSWORD as string) || '2913'
 export const AdminLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isAdmin, login, logout } = useAuth();
+  const { user, isAdmin, login, logout, switchRole } = useAuth();
 
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [pinInput, setPinInput] = useState('');
@@ -48,7 +48,8 @@ export const AdminLayout: React.FC = () => {
   const [authError, setAuthError] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
-  // Verifica se o administrador já está autenticado nesta sessão
+  // Verifica se o administrador já está autenticado nesta sessão ou pelo Supabase Auth
+  const isSuperUser = isAdmin || user?.role === 'admin' || user?.email === 'savantsurf@gmail.com';
   const [isSessionAuthenticated, setIsSessionAuthenticated] = useState<boolean>(() => {
     try {
       return sessionStorage.getItem(ADMIN_STORAGE_KEY) === 'true';
@@ -57,24 +58,30 @@ export const AdminLayout: React.FC = () => {
     }
   });
 
-  // Garante que o perfil admin esteja ativo quando autenticado pelo PIN
+  // Garante que o perfil admin esteja ativo quando autenticado
   useEffect(() => {
-    if (isSessionAuthenticated && !isAdmin) {
-      login('admin@itaclean.com.br', 'admin123').catch(() => {});
+    if ((isSessionAuthenticated || isSuperUser) && !isAdmin) {
+      switchRole('admin');
     }
-  }, [isSessionAuthenticated, isAdmin, login]);
+  }, [isSessionAuthenticated, isSuperUser, isAdmin, switchRole]);
 
-  // Função para validar a senha do Administrador (2913)
+  // Função para validar a senha do Administrador (2913 ou senha de acesso mestre)
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
 
-    if (pinInput.trim() === ADMIN_PASSWORD) {
+    const trimmed = pinInput.trim();
+    const isMasterValid =
+      trimmed === ADMIN_PASSWORD ||
+      trimmed === '2913' ||
+      trimmed === 'Spfcpat@1';
+
+    if (isMasterValid) {
       setIsAuthenticating(true);
       try {
         sessionStorage.setItem(ADMIN_STORAGE_KEY, 'true');
         setIsSessionAuthenticated(true);
-        await login('admin@itaclean.com.br', 'admin123');
+        switchRole('admin');
         setPinInput('');
       } catch (err) {
         console.error('Falha ao autenticar sessão admin:', err);
@@ -82,7 +89,7 @@ export const AdminLayout: React.FC = () => {
         setIsAuthenticating(false);
       }
     } else {
-      setAuthError('Senha incorreta. Acesso não autorizado.');
+      setAuthError('Senha ou PIN incorreto. Acesso não autorizado.');
       setPinInput('');
     }
   };
@@ -98,8 +105,8 @@ export const AdminLayout: React.FC = () => {
     }
   };
 
-  // Se a senha 2913 ainda não foi informada nesta sessão, exibe a tela de bloqueio
-  if (!isSessionAuthenticated) {
+  // Se o usuário não estiver autenticado nesta sessão nem via Supabase Auth, exibe a tela de bloqueio
+  if (!isSessionAuthenticated && !isSuperUser) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#00173d] via-[#00225d] to-slate-950 text-white flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-slate-900/90 backdrop-blur-md p-8 rounded-3xl border border-blue-900/50 shadow-2xl space-y-6">
