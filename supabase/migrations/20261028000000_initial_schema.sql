@@ -137,7 +137,7 @@ CREATE TABLE IF NOT EXISTS public.products (
 -- 8. PRODUCT IMAGES
 CREATE TABLE IF NOT EXISTS public.product_images (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    product_id TEXT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
     storage_path TEXT NOT NULL,
     alt_text TEXT,
     sort_order INT DEFAULT 0 NOT NULL,
@@ -147,7 +147,7 @@ CREATE TABLE IF NOT EXISTS public.product_images (
 -- 9. PRODUCT VARIANTS (Variações: Ex: 1L, 5L, 20L, Fragrância)
 CREATE TABLE IF NOT EXISTS public.product_variants (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    product_id TEXT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
     sku TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL, -- Ex: "Galão 5 Litros"
     attributes JSONB NOT NULL DEFAULT '{}'::jsonb, -- {"volume": "5L", "fragrance": "Lavanda"}
@@ -187,7 +187,7 @@ CREATE TABLE IF NOT EXISTS public.carts (
 CREATE TABLE IF NOT EXISTS public.cart_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     cart_id UUID NOT NULL REFERENCES public.carts(id) ON DELETE CASCADE,
-    product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    product_id TEXT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
     variant_id UUID REFERENCES public.product_variants(id) ON DELETE SET NULL,
     quantity INT NOT NULL CHECK (quantity > 0),
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
@@ -238,7 +238,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
 CREATE TABLE IF NOT EXISTS public.order_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
-    product_id UUID REFERENCES public.products(id) ON DELETE SET NULL,
+    product_id TEXT REFERENCES public.products(id) ON DELETE SET NULL,
     product_name_snapshot TEXT NOT NULL,
     sku_snapshot TEXT NOT NULL,
     variant_snapshot JSONB,
@@ -292,7 +292,7 @@ CREATE TABLE IF NOT EXISTS public.wishlists (
 CREATE TABLE IF NOT EXISTS public.wishlist_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     wishlist_id UUID NOT NULL REFERENCES public.wishlists(id) ON DELETE CASCADE,
-    product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    product_id TEXT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     CONSTRAINT unique_wishlist_product UNIQUE (wishlist_id, product_id)
 );
