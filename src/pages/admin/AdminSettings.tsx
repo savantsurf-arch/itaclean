@@ -1,15 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Save, CheckCircle2, Shield, CreditCard, Truck } from 'lucide-react';
+import { Settings, Save, CheckCircle2, Shield, CreditCard, Truck, Database, RefreshCw, AlertCircle, ExternalLink } from 'lucide-react';
 import { getStoreSettings, saveStoreSettings } from '../../lib/data-service';
+import { testSupabaseConnection, SupabaseConnectionStatus } from '../../lib/supabase';
 import { StoreSettings } from '../../types';
 
 export const AdminSettings: React.FC = () => {
   const [settings, setSettings] = useState<StoreSettings | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+  const [dbStatus, setDbStatus] = useState<SupabaseConnectionStatus | null>(null);
+  const [isTestingDb, setIsTestingDb] = useState(false);
 
   useEffect(() => {
     getStoreSettings().then(setSettings);
+    // Realiza teste de conexão inicial com o Supabase
+    testSupabaseConnection().then(setDbStatus);
   }, []);
+
+  const handleTestDatabase = async () => {
+    setIsTestingDb(true);
+    const status = await testSupabaseConnection();
+    setDbStatus(status);
+    setIsTestingDb(false);
+  };
 
   if (!settings) return null;
 
@@ -167,6 +179,110 @@ export const AdminSettings: React.FC = () => {
               <span className="text-[10px] text-slate-400">Padrão da loja: 5%</span>
             </div>
           </div>
+        </div>
+
+        {/* STATUS DAS CONEXÕES DO SUPABASE */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-3">
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <Database className="w-4 h-4 text-[#003893]" />
+              <span>Conexão com Banco de Dados Supabase (PostgreSQL)</span>
+            </h2>
+
+            <button
+              type="button"
+              onClick={handleTestDatabase}
+              disabled={isTestingDb}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isTestingDb ? 'animate-spin' : ''}`} />
+              <span>{isTestingDb ? 'Testando Conexão...' : 'Testar Conexão Novamente'}</span>
+            </button>
+          </div>
+
+          {/* Status Geral */}
+          <div className={`p-4 rounded-xl border flex items-start gap-3 ${
+            dbStatus?.connected
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+              : dbStatus?.isConfigured
+              ? 'bg-amber-50 border-amber-200 text-amber-900'
+              : 'bg-blue-50 border-blue-200 text-blue-900'
+          }`}>
+            {dbStatus?.connected ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+            ) : dbStatus?.isConfigured ? (
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            ) : (
+              <Database className="w-5 h-5 text-[#003893] shrink-0 mt-0.5" />
+            )}
+
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-xs uppercase tracking-wide">
+                  {dbStatus?.connected
+                    ? '🟢 Supabase Online e Conectado'
+                    : dbStatus?.isConfigured
+                    ? '🟡 Chaves Configuradas (Tabelas Pendentes)'
+                    : '🔵 Modo Local / Fallback Resiliente Ativo'}
+                </span>
+                {dbStatus?.latencyMs !== undefined && (
+                  <span className="text-[10px] font-mono bg-white/70 px-1.5 py-0.5 rounded border border-current">
+                    {dbStatus.latencyMs}ms
+                  </span>
+                )}
+              </div>
+              <p className="text-xs leading-relaxed opacity-90">{dbStatus?.message}</p>
+              {dbStatus?.url && (
+                <p className="text-[11px] font-mono opacity-80 pt-1">
+                  URL do Projeto: {dbStatus.url}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Status das Tabelas Individuais se configurado */}
+          {dbStatus?.tables && (
+            <div className="pt-2">
+              <span className="text-xs font-bold text-slate-700 block mb-2">
+                Status das Tabelas no PostgreSQL:
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {Object.entries(dbStatus.tables).map(([table, isOk]) => (
+                  <div
+                    key={table}
+                    className={`p-2.5 rounded-xl border text-center text-xs ${
+                      isOk
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                        : 'bg-rose-50 border-rose-200 text-rose-800'
+                    }`}
+                  >
+                    <span className="block font-bold text-[11px]">{table}</span>
+                    <span className="text-[10px] font-semibold">
+                      {isOk ? '✔ Conectada' : '✖ Não encontrada'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Guia de Configuração se não conectado */}
+          {!dbStatus?.connected && (
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-slate-600 text-xs">
+              <strong className="text-slate-800 block">Como ativar a conexão completa com o Supabase:</strong>
+              <ol className="list-decimal list-inside space-y-1 text-[11px]">
+                <li>Acesse seu projeto no painel do <strong>Supabase</strong> e abra o <strong>SQL Editor</strong>.</li>
+                <li>Copie e execute o script unificado em <code>supabase/complete_setup.sql</code>.</li>
+                <li>Em <strong>Project Settings → API</strong>, copie a <strong>Project URL</strong> e a <strong>anon key</strong>.</li>
+                <li>Insira no arquivo <code>.env</code> ou nas <strong>Environment Variables</strong> da Vercel:
+                  <div className="mt-1 font-mono bg-slate-800 text-sky-300 p-2 rounded-lg text-[10px] space-y-0.5">
+                    <div>VITE_SUPABASE_URL=https://sua-url.supabase.co</div>
+                    <div>VITE_SUPABASE_ANON_KEY=sua-chave-anon</div>
+                  </div>
+                </li>
+              </ol>
+            </div>
+          )}
         </div>
 
         {/* INFORMAÇÕES DE INTEGRAÇÃO */}

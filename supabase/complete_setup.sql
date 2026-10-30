@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
     customer_name TEXT NOT NULL,
     customer_email TEXT NOT NULL,
     customer_phone TEXT NOT NULL,
-    customer_document TEXT NOT NULL,
+    customer_document TEXT,
     shipping_street TEXT NOT NULL,
     shipping_number TEXT NOT NULL,
     shipping_complement TEXT,
@@ -169,9 +169,12 @@ CREATE TABLE IF NOT EXISTS public.order_items (
     product_variant_id UUID REFERENCES public.product_variants(id) ON DELETE SET NULL,
     name TEXT NOT NULL,
     sku TEXT NOT NULL,
+    product_name_snapshot TEXT,
+    sku_snapshot TEXT,
     unit_price NUMERIC(10, 2) NOT NULL,
     quantity INT NOT NULL CHECK (quantity > 0),
     total_price NUMERIC(10, 2) NOT NULL,
+    line_total NUMERIC(10, 2),
     image_url TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );

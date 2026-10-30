@@ -223,6 +223,21 @@ export interface ProductsResponse {
 
 export async function getProducts(params: ProductFilterParams = {}): Promise<ProductsResponse> {
   let products = getLocalData<Product[]>(STORAGE_KEYS.PRODUCTS, INITIAL_PRODUCTS);
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_active', true);
+      if (!error && data && data.length > 0) {
+        products = data as Product[];
+      }
+    } catch (e) {
+      console.warn('Supabase products error, fallback to local:', e);
+    }
+  }
+
   const categories = await getCategories();
   const brands = await getBrands();
 
@@ -318,6 +333,28 @@ export async function getProducts(params: ProductFilterParams = {}): Promise<Pro
 }
 
 export async function getProductBySlug(slug: string): Promise<Product | null> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('slug', slug)
+        .maybeSingle();
+
+      if (!error && data) {
+        const categories = await getCategories();
+        const brands = await getBrands();
+        return {
+          ...data,
+          category: categories.find((c) => c.id === data.category_id),
+          brand: brands.find((b) => b.id === data.brand_id),
+        } as Product;
+      }
+    } catch (e) {
+      console.warn('Supabase product slug error, fallback to local:', e);
+    }
+  }
+
   const products = getLocalData<Product[]>(STORAGE_KEYS.PRODUCTS, INITIAL_PRODUCTS);
   const found = products.find((p) => p.slug === slug);
   if (!found) return null;
@@ -388,6 +425,19 @@ export async function deleteProduct(id: string): Promise<void> {
 // COUPONS
 // ----------------------------------------------------
 export async function getCoupons(): Promise<Coupon[]> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('coupons')
+        .select('*')
+        .eq('is_active', true);
+      if (!error && data && data.length > 0) {
+        return data as Coupon[];
+      }
+    } catch (e) {
+      console.warn('Supabase coupons error, fallback to local:', e);
+    }
+  }
   return getLocalData<Coupon[]>(STORAGE_KEYS.COUPONS, INITIAL_COUPONS);
 }
 
@@ -459,11 +509,37 @@ export async function getOrders(): Promise<Order[]> {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select('*')
+        .select('*, order_items(*)')
         .order('created_at', { ascending: false });
 
       if (!error && data && data.length > 0) {
-        return data as Order[];
+        return data.map((o: any) => ({
+          ...o,
+          order_status: o.status || o.order_status,
+          shipping_amount: o.shipping_cost ?? o.shipping_amount ?? 0,
+          shipping_address: o.shipping_address || {
+            id: `addr-${o.id}`,
+            recipient_name: o.customer_name,
+            postal_code: o.shipping_postal_code || '',
+            street: o.shipping_street || '',
+            number: o.shipping_number || '',
+            complement: o.shipping_complement || '',
+            neighborhood: o.shipping_neighborhood || '',
+            city: o.shipping_city || 'Itabuna',
+            state: o.shipping_state || 'BA',
+          },
+          items: (o.order_items || []).map((it: any) => ({
+            id: it.id,
+            order_id: it.order_id,
+            product_id: it.product_id,
+            product_name_snapshot: it.product_name_snapshot || it.name,
+            sku_snapshot: it.sku_snapshot || it.sku,
+            unit_price: it.unit_price,
+            quantity: it.quantity,
+            line_total: it.line_total || it.total_price || it.unit_price * it.quantity,
+            image_url: it.image_url,
+          })),
+        })) as Order[];
       }
     } catch (e) {
       console.warn('Supabase orders fetch error, fallback to local:', e);
@@ -506,36 +582,55 @@ export async function createOrder(
 
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('orders').insert({
-        id: newOrder.id,
+      const orderPayload: any = {
         order_number: newOrder.order_number,
-        user_id: newOrder.user_id,
+        user_id: newOrder.user_id || null,
         customer_name: newOrder.customer_name,
         customer_email: newOrder.customer_email,
         customer_phone: newOrder.customer_phone,
-        customer_document: newOrder.customer_document,
-        shipping_address: newOrder.shipping_address,
+        customer_document: newOrder.customer_document || 'Não informado',
+        shipping_street: newOrder.shipping_address.street,
+        shipping_number: newOrder.shipping_address.number,
+        shipping_complement: newOrder.shipping_address.complement || '',
+        shipping_neighborhood: newOrder.shipping_address.neighborhood,
+        shipping_city: newOrder.shipping_address.city,
+        shipping_state: newOrder.shipping_address.state,
+        shipping_postal_code: newOrder.shipping_address.postal_code,
+        shipping_method: newOrder.shipping_method,
+        shipping_cost: newOrder.shipping_amount,
+        payment_method: newOrder.payment_method,
         subtotal: newOrder.subtotal,
         discount_amount: newOrder.discount_amount,
-        shipping_amount: newOrder.shipping_amount,
         total_amount: newOrder.total_amount,
+        status: newOrder.order_status,
         payment_status: newOrder.payment_status,
-        order_status: newOrder.order_status,
-        shipping_method: newOrder.shipping_method,
         notes: newOrder.notes,
-      });
+      };
 
-      // Insert order items snapshot
-      const orderItemsToInsert = newOrder.items.map((i) => ({
-        order_id: newOrder.id,
-        product_id: i.product_id,
-        product_name_snapshot: i.product_name_snapshot,
-        sku_snapshot: i.sku_snapshot,
-        unit_price: i.unit_price,
-        quantity: i.quantity,
-        line_total: i.line_total,
-      }));
-      await supabase.from('order_items').insert(orderItemsToInsert);
+      const { data: insertedOrder, error: orderErr } = await supabase
+        .from('orders')
+        .insert(orderPayload)
+        .select()
+        .single();
+
+      if (!orderErr && insertedOrder) {
+        const orderId = insertedOrder.id;
+        const orderItemsToInsert = newOrder.items.map((i) => ({
+          order_id: orderId,
+          name: i.product_name_snapshot,
+          sku: i.sku_snapshot,
+          product_name_snapshot: i.product_name_snapshot,
+          sku_snapshot: i.sku_snapshot,
+          unit_price: i.unit_price,
+          quantity: i.quantity,
+          total_price: i.line_total,
+          line_total: i.line_total,
+          image_url: i.image_url,
+        }));
+        await supabase.from('order_items').insert(orderItemsToInsert);
+      } else if (orderErr) {
+        console.warn('Erro ao inserir pedido no Supabase:', orderErr.message);
+      }
     } catch (e) {
       console.error('Erro ao persistir pedido no Supabase:', e);
     }
