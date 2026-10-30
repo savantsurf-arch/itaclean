@@ -24,14 +24,7 @@ export const LoginPage: React.FC = () => {
     setIsLoading(false);
 
     if (res.success) {
-      if (email.toLowerCase().includes('savantsurf') || email.toLowerCase().includes('admin')) {
-        try {
-          sessionStorage.setItem('itaclean_admin_authenticated_session', 'true');
-        } catch {}
-        navigate('/admin', { replace: true });
-      } else {
-        navigate(from, { replace: true });
-      }
+      navigate(from, { replace: true });
     } else {
       setError(res.error || 'Credenciais inválidas.');
     }
@@ -39,21 +32,12 @@ export const LoginPage: React.FC = () => {
 
   const handleQuickAdminLogin = async () => {
     setIsLoading(true);
-    const res = await login('savantsurf@gmail.com', 'Spfcpat@1');
-    if (res.success) {
-      try {
-        sessionStorage.setItem('itaclean_admin_authenticated_session', 'true');
-      } catch {}
-      setIsLoading(false);
-      navigate('/admin');
-    } else {
-      switchRole('admin');
-      try {
-        sessionStorage.setItem('itaclean_admin_authenticated_session', 'true');
-      } catch {}
-      setIsLoading(false);
-      navigate('/admin');
-    }
+    switchRole('admin');
+    try {
+      sessionStorage.setItem('itaclean_admin_authenticated_session', 'true');
+    } catch {}
+    setIsLoading(false);
+    navigate('/admin');
   };
 
   return (

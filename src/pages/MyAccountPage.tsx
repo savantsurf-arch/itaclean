@@ -22,6 +22,7 @@ import { getOrders, getProducts } from '../lib/data-service';
 import { Order, Product } from '../types';
 import { formatCurrency, formatDocument, formatPhone } from '../lib/utils';
 import { ProductCard } from '../components/common/ProductCard';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 export const MyAccountPage: React.FC = () => {
   const navigate = useNavigate();
@@ -79,9 +80,19 @@ export const MyAccountPage: React.FC = () => {
     }
   }, [wishlistIds]);
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSavedSuccessMessage('Dados atualizados com sucesso!');
+    if (isSupabaseConfigured && supabase && user?.id) {
+      await supabase.from('profiles').upsert({
+        id: user.id,
+        full_name: fullName,
+        phone,
+        document_number: documentNumber,
+        company_name: companyName,
+        updated_at: new Date().toISOString(),
+      });
+    }
+    setSavedSuccessMessage('Dados atualizados com sucesso no seu perfil!');
     setTimeout(() => setSavedSuccessMessage(''), 3000);
   };
 

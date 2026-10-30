@@ -64,22 +64,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isSupabaseConfigured && client) {
       client.auth.getSession().then(({ data: { session } }) => {
         if (session?.user) {
-          // Check role in user_roles table
-          client
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', session.user.id)
-            .maybeSingle()
-            .then(({ data: roleData }) => {
-              const role: UserRole = roleData?.role || 'customer';
-              setUser({
-                id: session.user.id,
-                email: session.user.email || '',
-                full_name: session.user.user_metadata?.full_name || 'Cliente Itaclean',
-                role,
-                created_at: session.user.created_at,
-              });
+          Promise.all([
+            client
+              .from('user_roles')
+              .select('role')
+              .eq('user_id', session.user.id)
+              .maybeSingle(),
+            client
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .maybeSingle(),
+          ]).then(([{ data: roleData }, { data: profileData }]) => {
+            const role: UserRole = roleData?.role || 'customer';
+            setUser({
+              id: session.user.id,
+              email: session.user.email || '',
+              full_name:
+                profileData?.full_name ||
+                session.user.user_metadata?.full_name ||
+                'Cliente Itaclean',
+              phone: profileData?.phone || '',
+              document_type: profileData?.document_type || 'CPF',
+              document_number: profileData?.document_number || '',
+              company_name: profileData?.company_name || '',
+              role,
+              created_at: session.user.created_at,
             });
+          });
         }
       });
     }
@@ -95,16 +107,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return { success: false, error: error.message };
         }
 
-        const { data: roleData } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', data.user.id)
-          .maybeSingle();
+        const [{ data: roleData }, { data: profileData }] = await Promise.all([
+          supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', data.user.id)
+            .maybeSingle(),
+          supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .maybeSingle(),
+        ]);
 
         const loggedUser: UserProfile = {
           id: data.user.id,
           email: data.user.email || '',
-          full_name: data.user.user_metadata?.full_name || email.split('@')[0],
+          full_name:
+            profileData?.full_name ||
+            data.user.user_metadata?.full_name ||
+            email.split('@')[0],
+          phone: profileData?.phone || '',
+          document_type: profileData?.document_type || 'CPF',
+          document_number: profileData?.document_number || '',
+          company_name: profileData?.company_name || '',
           role: roleData?.role || 'customer',
           created_at: data.user.created_at,
         };

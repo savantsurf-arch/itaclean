@@ -49,7 +49,7 @@ export const AdminLayout: React.FC = () => {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   // Verifica se o administrador já está autenticado nesta sessão ou pelo Supabase Auth
-  const isSuperUser = isAdmin || user?.role === 'admin' || user?.email === 'savantsurf@gmail.com';
+  const isSuperUser = isAdmin || user?.role === 'admin';
   const [isSessionAuthenticated, setIsSessionAuthenticated] = useState<boolean>(() => {
     try {
       return sessionStorage.getItem(ADMIN_STORAGE_KEY) === 'true';
