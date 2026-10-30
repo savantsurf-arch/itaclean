@@ -11,6 +11,7 @@ import {
   Eye,
   CheckCircle2,
   Truck,
+  Users,
 } from 'lucide-react';
 import { getOrders, getProducts } from '../../lib/data-service';
 import { Order, Product } from '../../types';
@@ -63,18 +64,25 @@ export const AdminDashboard: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             to="/admin/produtos"
-            className="px-4 py-2 bg-[#003893] hover:bg-[#002766] text-white text-xs font-bold rounded-lg shadow-sm transition-colors"
+            className="px-4 py-2 bg-[#003893] hover:bg-[#002766] text-white text-xs font-bold rounded-lg shadow-sm transition-colors cursor-pointer"
           >
             + Cadastrar Produto
           </Link>
           <Link
             to="/admin/pedidos"
-            className="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-50 transition-colors"
+            className="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
           >
             Gerenciar Pedidos
+          </Link>
+          <Link
+            to="/admin/clientes"
+            className="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-50 transition-colors cursor-pointer flex items-center gap-1.5"
+          >
+            <Users className="w-3.5 h-3.5 text-[#003893]" />
+            <span>Ver Clientes</span>
           </Link>
         </div>
       </div>

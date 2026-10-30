@@ -5,16 +5,28 @@ import {
   Search,
   Edit2,
   Trash2,
-  Download,
-  Check,
-  X,
   AlertTriangle,
-  Star,
-  Loader2,
   CheckCircle2,
+  Star,
+  FileSpreadsheet,
+  Loader2,
   AlertCircle,
+  Eye,
+  Sparkles,
+  ToggleLeft,
+  ToggleRight,
+  Image as ImageIcon,
+  DollarSign,
+  Layers,
+  RefreshCw,
 } from 'lucide-react';
-import { getProducts, getCategories, saveProduct, deleteProduct } from '../../lib/data-service';
+import {
+  getProducts,
+  getCategories,
+  saveProduct,
+  deleteProduct,
+  toggleProductActive,
+} from '../../lib/data-service';
 import { Product, Category } from '../../types';
 import { formatCurrency, slugify } from '../../lib/utils';
 
@@ -23,6 +35,7 @@ export const AdminProducts: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [stockFilter, setStockFilter] = useState<'all' | 'normal' | 'low' | 'out'>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
@@ -31,6 +44,8 @@ export const AdminProducts: React.FC = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Product | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form Fields
   const [formName, setFormName] = useState('');
@@ -46,17 +61,23 @@ export const AdminProducts: React.FC = () => {
   const [formSafety, setFormSafety] = useState('');
   const [formImage, setFormImage] = useState('');
   const [formIsFeatured, setFormIsFeatured] = useState(false);
+  const [formIsNew, setFormIsNew] = useState(false);
   const [formIsActive, setFormIsActive] = useState(true);
 
   const loadData = async () => {
     setIsLoading(true);
-    const [prodRes, catRes] = await Promise.all([
-      getProducts({ pageSize: 100, activeOnly: false }),
-      getCategories(false),
-    ]);
-    setProducts(prodRes.products);
-    setCategories(catRes);
-    setIsLoading(false);
+    try {
+      const [prodRes, catRes] = await Promise.all([
+        getProducts({ pageSize: 150, activeOnly: false }),
+        getCategories(false),
+      ]);
+      setProducts(prodRes.products);
+      setCategories(catRes);
+    } catch (e) {
+      console.error('Erro ao buscar dados de produtos:', e);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -78,6 +99,7 @@ export const AdminProducts: React.FC = () => {
     setFormSafety('Utilizar luvas de proteção. Registro ANVISA.');
     setFormImage('https://images.unsplash.com/photo-1585421514738-01798e348b17?auto=format&fit=crop&w=800&q=80');
     setFormIsFeatured(false);
+    setFormIsNew(true);
     setFormIsActive(true);
     setModalError(null);
     setIsModalOpen(true);
@@ -98,6 +120,7 @@ export const AdminProducts: React.FC = () => {
     setFormSafety(p.safety_info || '');
     setFormImage(p.images[0] || '');
     setFormIsFeatured(p.is_featured);
+    setFormIsNew(p.is_new ?? false);
     setFormIsActive(p.is_active);
     setModalError(null);
     setIsModalOpen(true);
@@ -126,8 +149,8 @@ export const AdminProducts: React.FC = () => {
       safety_info: formSafety.trim(),
       images: [formImage.trim() || '/itaclean-logo.jpg'],
       is_featured: formIsFeatured,
+      is_new: formIsNew,
       is_active: formIsActive,
-      is_new: false,
       created_at: editingProduct ? editingProduct.created_at : new Date().toISOString(),
     };
 
@@ -150,33 +173,53 @@ export const AdminProducts: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Tem certeza que deseja excluir este produto do catálogo?')) {
-      try {
-        await deleteProduct(id);
-        setActionFeedback({
-          type: 'success',
-          message: 'Produto excluído com sucesso do banco de dados!',
-        });
-        await loadData();
-        setTimeout(() => setActionFeedback(null), 4000);
-      } catch (err: any) {
-        setActionFeedback({
-          type: 'error',
-          message: err.message || 'Falha ao excluir produto no Supabase.',
-        });
-      }
+  const handleToggleActive = async (id: string, currentActive: boolean) => {
+    try {
+      await toggleProductActive(id, !currentActive);
+      setActionFeedback({
+        type: 'success',
+        message: `Status do produto atualizado para ${!currentActive ? 'ATIVO' : 'INATIVO'} no Supabase!`,
+      });
+      await loadData();
+      setTimeout(() => setActionFeedback(null), 3000);
+    } catch (e: any) {
+      setActionFeedback({
+        type: 'error',
+        message: e.message || 'Erro ao alterar status do produto.',
+      });
+    }
+  };
+
+  const executeDelete = async () => {
+    if (!deleteConfirm) return;
+    setIsDeleting(true);
+    try {
+      await deleteProduct(deleteConfirm.id);
+      setActionFeedback({
+        type: 'success',
+        message: `Produto "${deleteConfirm.name}" excluído do Supabase com sucesso!`,
+      });
+      setDeleteConfirm(null);
+      await loadData();
+      setTimeout(() => setActionFeedback(null), 4000);
+    } catch (err: any) {
+      setActionFeedback({
+        type: 'error',
+        message: err.message || 'Erro ao excluir produto no Supabase.',
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   const handleExportCSV = () => {
     const headers = ['ID', 'Nome', 'SKU', 'Preco', 'Preco_Promocional', 'Estoque', 'Destaque', 'Ativo'];
-    const rows = products.map((p) => [
-      p.id,
+    const rows = filtered.map((p) => [
+      `"${p.id}"`,
       `"${p.name.replace(/"/g, '""')}"`,
-      p.sku,
-      p.price,
-      p.sale_price || '',
+      `"${p.sku}"`,
+      p.price.toFixed(2),
+      p.sale_price ? p.sale_price.toFixed(2) : '',
       p.stock_quantity,
       p.is_featured ? 'SIM' : 'NAO',
       p.is_active ? 'SIM' : 'NAO',
@@ -186,72 +229,104 @@ export const AdminProducts: React.FC = () => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `catalogo_itaclean_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `itaclean_produtos_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
+  // Filter products
   const filtered = products.filter((p) => {
-    const matchSearch =
+    const matchesSearch =
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchCategory = !selectedCategory || p.category_id === selectedCategory;
-    return matchSearch && matchCategory;
+    const matchesCategory = !selectedCategory || p.category_id === selectedCategory;
+
+    let matchesStock = true;
+    if (stockFilter === 'out') {
+      matchesStock = p.stock_quantity === 0;
+    } else if (stockFilter === 'low') {
+      matchesStock = p.stock_quantity > 0 && p.stock_quantity <= p.low_stock_threshold;
+    } else if (stockFilter === 'normal') {
+      matchesStock = p.stock_quantity > p.low_stock_threshold;
+    }
+
+    return matchesSearch && matchesCategory && matchesStock;
   });
+
+  // Calculate discount percentage if sale price is provided
+  const parsedPrice = parseFloat(formPrice.replace(',', '.'));
+  const parsedSalePrice = parseFloat(formSalePrice.replace(',', '.'));
+  const discountPercent =
+    !isNaN(parsedPrice) && !isNaN(parsedSalePrice) && parsedPrice > 0 && parsedSalePrice < parsedPrice
+      ? Math.round(((parsedPrice - parsedSalePrice) / parsedPrice) * 100)
+      : 0;
 
   return (
     <div className="space-y-6">
-      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* HEADER BAR */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            Gestão de Produtos & Estoque
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <Package className="w-6 h-6 text-[#003893]" />
+            <span>Gerenciamento de Produtos & Estoque</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Cadastre, edite preços, controle estoque e regras técnicas de químicos
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Cadastre, edite preços, controle estoque e defina promoções na loja virtual
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
-            onClick={handleExportCSV}
-            className="px-3.5 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-1.5 cursor-pointer"
+            onClick={loadData}
+            className="p-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl transition-all cursor-pointer shadow-2xs"
+            title="Atualizar dados do Supabase"
           >
-            <Download className="w-4 h-4" />
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-[#003893]' : ''}`} />
+          </button>
+          <button
+            onClick={handleExportCSV}
+            className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
             <span>Exportar CSV</span>
           </button>
           <button
             onClick={openCreateModal}
-            className="px-4 py-2 bg-[#003893] hover:bg-[#002766] text-white text-xs font-bold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+            className="px-4 py-2 bg-[#003893] hover:bg-[#002766] text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Novo Produto</span>
+            <span>Cadastrar Produto</span>
           </button>
         </div>
       </div>
 
       {actionFeedback && (
         <div
-          className={`p-4 rounded-xl text-xs font-bold flex items-center gap-2 border animate-fadeIn ${
+          className={`p-4 rounded-xl text-xs font-bold flex items-center justify-between border ${
             actionFeedback.type === 'success'
               ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
               : 'bg-rose-50 border-rose-200 text-rose-800'
           }`}
         >
-          {actionFeedback.type === 'success' ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-          ) : (
-            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
-          )}
-          <span>{actionFeedback.message}</span>
+          <div className="flex items-center gap-2">
+            {actionFeedback.type === 'success' ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+            )}
+            <span>{actionFeedback.message}</span>
+          </div>
+          <button onClick={() => setActionFeedback(null)} className="text-slate-400 hover:text-slate-700 cursor-pointer text-xs">
+            ✕
+          </button>
         </div>
       )}
 
       {/* SEARCH AND CATEGORY FILTER BAR */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Buscar por nome ou SKU..."
@@ -264,14 +339,25 @@ export const AdminProducts: React.FC = () => {
         <select
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
-          className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#003893]"
+          className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-700 font-bold focus:outline-none focus:ring-1 focus:ring-[#003893] cursor-pointer"
         >
-          <option value="">Todas as Categorias</option>
+          <option value="">Todas as Categorias ({categories.length})</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
           ))}
+        </select>
+
+        <select
+          value={stockFilter}
+          onChange={(e) => setStockFilter(e.target.value as any)}
+          className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-700 font-bold focus:outline-none focus:ring-1 focus:ring-[#003893] cursor-pointer"
+        >
+          <option value="all">Todos os Estoques</option>
+          <option value="normal">Estoque Normal</option>
+          <option value="low">Alerta Estoque Baixo</option>
+          <option value="out">Esgotado (0 un)</option>
         </select>
       </div>
 
@@ -286,92 +372,132 @@ export const AdminProducts: React.FC = () => {
                 <th className="py-3 px-4">Preço Normal</th>
                 <th className="py-3 px-4">Preço Promo</th>
                 <th className="py-3 px-4">Estoque</th>
-                <th className="py-3 px-4">Destaque</th>
+                <th className="py-3 px-4">Destaques</th>
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((prod) => {
-                const isLow = prod.stock_quantity <= prod.low_stock_threshold;
-                return (
-                  <tr key={prod.id} className="hover:bg-slate-50/70">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={prod.images[0] || '/itaclean-logo.jpg'}
-                          alt={prod.name}
-                          className="w-10 h-10 object-contain rounded border border-slate-100 shrink-0"
-                        />
-                        <div className="min-w-0 max-w-xs">
-                          <p className="font-bold text-slate-900 truncate">{prod.name}</p>
-                          <span className="text-[10px] text-slate-400">
-                            {prod.category?.name || 'Sem categoria'}
-                          </span>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={8} className="py-8 text-center text-slate-400">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#003893] mb-2" />
+                    <span>Carregando produtos do Supabase...</span>
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-8 text-center text-slate-400">
+                    Nenhum produto encontrado.
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((prod) => {
+                  const isLow = prod.stock_quantity <= prod.low_stock_threshold;
+                  return (
+                    <tr key={prod.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={prod.images[0] || '/itaclean-logo.jpg'}
+                            alt={prod.name}
+                            className="w-10 h-10 object-contain rounded-lg border border-slate-200 p-0.5 bg-white shrink-0"
+                          />
+                          <div className="min-w-0 max-w-xs">
+                            <p className="font-bold text-slate-900 truncate">{prod.name}</p>
+                            <span className="text-[10px] text-slate-400">
+                              {prod.category?.name || 'Sem categoria'}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 font-mono font-bold text-slate-600">{prod.sku}</td>
-                    <td className="py-3 px-4 font-semibold text-slate-800">
-                      {formatCurrency(prod.price)}
-                    </td>
-                    <td className="py-3 px-4 font-semibold text-emerald-600">
-                      {prod.sale_price ? formatCurrency(prod.sale_price) : '-'}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={`font-black ${
-                          prod.stock_quantity === 0
-                            ? 'text-rose-600'
-                            : isLow
-                            ? 'text-amber-600'
-                            : 'text-slate-800'
-                        }`}
-                      >
-                        {prod.stock_quantity} un
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      {prod.is_featured ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
-                          <Star className="w-3 h-3 fill-current" /> Sim
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 text-[11px]">Não</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4">
-                      {prod.is_active ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                          Ativo
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
-                          Inativo
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => openEditModal(prod)}
-                          className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors cursor-pointer"
-                          title="Editar produto"
+                      </td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-600">{prod.sku}</td>
+                      <td className="py-3 px-4 font-semibold text-slate-800">
+                        {formatCurrency(prod.price)}
+                      </td>
+                      <td className="py-3 px-4">
+                        {prod.sale_price ? (
+                          <div className="flex items-center gap-1">
+                            <span className="font-bold text-emerald-600">
+                              {formatCurrency(prod.sale_price)}
+                            </span>
+                            <span className="px-1 py-0.2 bg-emerald-100 text-emerald-800 text-[9px] font-black rounded">
+                              PROMO
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400">-</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span
+                          className={`font-black ${
+                            prod.stock_quantity === 0
+                              ? 'text-rose-600'
+                              : isLow
+                              ? 'text-amber-600'
+                              : 'text-slate-800'
+                          }`}
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
+                          {prod.stock_quantity} un
+                        </span>
+                        {isLow && prod.stock_quantity > 0 && (
+                          <span className="text-[9px] text-amber-700 block font-bold">Mín: {prod.low_stock_threshold}</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex flex-col gap-1 items-start">
+                          {prod.is_featured && (
+                            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                              <Star className="w-2.5 h-2.5 fill-current" /> Destaque
+                            </span>
+                          )}
+                          {prod.is_new && (
+                            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">
+                              <Sparkles className="w-2.5 h-2.5" /> Lançamento
+                            </span>
+                          )}
+                          {!prod.is_featured && !prod.is_new && (
+                            <span className="text-slate-400 text-[10px]">Padrão</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
                         <button
-                          onClick={() => handleDelete(prod.id)}
-                          className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg transition-colors cursor-pointer"
-                          title="Excluir produto"
+                          onClick={() => handleToggleActive(prod.id, prod.is_active)}
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                            prod.is_active
+                              ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800'
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                          }`}
+                          title="Clique para ativar/desativar este produto"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <span className={`w-1.5 h-1.5 rounded-full ${prod.is_active ? 'bg-emerald-600' : 'bg-slate-400'}`} />
+                          <span>{prod.is_active ? 'Ativo' : 'Inativo'}</span>
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => openEditModal(prod)}
+                            className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors cursor-pointer"
+                            title="Editar produto"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirm(prod)}
+                            className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg transition-colors cursor-pointer"
+                            title="Excluir produto"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -431,7 +557,7 @@ export const AdminProducts: React.FC = () => {
                   <select
                     value={formCategory}
                     onChange={(e) => setFormCategory(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893] font-medium"
                   >
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -454,7 +580,14 @@ export const AdminProducts: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Preço Promocional (Opcional)</label>
+                  <label className="font-bold text-slate-700 block mb-1 flex items-center justify-between">
+                    <span>Preço Promocional (Opcional)</span>
+                    {discountPercent > 0 && (
+                      <span className="text-emerald-700 font-black text-[10px]">
+                        -{discountPercent}% OFF
+                      </span>
+                    )}
+                  </label>
                   <input
                     type="text"
                     placeholder="59.90"
@@ -489,13 +622,25 @@ export const AdminProducts: React.FC = () => {
 
                 <div className="sm:col-span-2">
                   <label className="font-bold text-slate-700 block mb-1">URL da Imagem Principal</label>
-                  <input
-                    type="url"
-                    placeholder="https://..."
-                    value={formImage}
-                    onChange={(e) => setFormImage(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
-                  />
+                  <div className="flex gap-3 items-center">
+                    <input
+                      type="url"
+                      placeholder="https://..."
+                      value={formImage}
+                      onChange={(e) => setFormImage(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
+                    />
+                    {formImage && (
+                      <div className="w-12 h-12 rounded-lg border border-slate-200 p-0.5 bg-white shrink-0 overflow-hidden flex items-center justify-center">
+                        <img
+                          src={formImage}
+                          alt="Preview"
+                          className="w-full h-full object-contain"
+                          onError={(e) => ((e.target as any).src = '/itaclean-logo.jpg')}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="sm:col-span-2">
@@ -532,7 +677,7 @@ export const AdminProducts: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-6 pt-2">
+              <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-slate-100">
                 <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
                   <input
                     type="checkbox"
@@ -541,6 +686,16 @@ export const AdminProducts: React.FC = () => {
                     className="w-4 h-4 text-[#003893] rounded"
                   />
                   <span>Exibir em Destaque na Home</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={formIsNew}
+                    onChange={(e) => setFormIsNew(e.target.checked)}
+                    className="w-4 h-4 text-purple-600 rounded"
+                  />
+                  <span>Marcar como Lançamento</span>
                 </label>
 
                 <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
@@ -578,6 +733,53 @@ export const AdminProducts: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM DELETE MODAL */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 animate-in zoom-in-95">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-black text-slate-900 text-sm">Excluir Produto</h3>
+                <p className="text-xs text-slate-500">Esta ação é irreversível no Supabase.</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-700">
+              Tem certeza que deseja excluir o produto{' '}
+              <strong className="text-slate-900 font-bold">"{deleteConfirm.name}"</strong>?
+            </p>
+
+            <div className="pt-2 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirm(null)}
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={executeDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Excluindo...</span>
+                  </>
+                ) : (
+                  <span>Sim, Excluir Produto</span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -7,6 +7,7 @@ export const INITIAL_SETTINGS: StoreSettings = {
   whatsapp: '557341419517',
   instagram: 'https://www.instagram.com/itacleanlimpeza/',
   email: 'contato@itaclean.com.br',
+  logo_url: '/itaclean-logo.jpg',
   address: 'Av. Cinquentenário, 187',
   neighborhood: 'Centro',
   city: 'Itabuna',

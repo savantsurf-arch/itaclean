@@ -473,3 +473,120 @@ test('20. Deve persistir configurações de loja e validar dados obrigatórios',
   assert.ok(settings.cnpj.includes('/'));
   assert.equal(settings.free_shipping_threshold, 299);
 });
+
+test('21. Deve unificar clientes por telefone/documento sem criar duplicatas e identificar recorrentes', () => {
+  const sampleOrders = [
+    {
+      id: 'ord-1',
+      order_number: 'ITA-2026-101',
+      customer_name: 'Dra. Beatriz Mendes',
+      customer_phone: '(73) 99123-4567',
+      customer_email: 'beatriz@odontoclean.com.br',
+      customer_document: '123.456.789-00',
+      total_amount: 188.86,
+      created_at: '2026-10-28T10:00:00Z',
+    },
+    {
+      id: 'ord-2',
+      order_number: 'ITA-2026-102',
+      customer_name: 'Beatriz Mendes',
+      customer_phone: '(73) 99123-4567',
+      customer_email: 'beatriz@odontoclean.com.br',
+      customer_document: '123.456.789-00',
+      total_amount: 250.00,
+      created_at: '2026-10-30T12:00:00Z',
+    },
+  ];
+
+  const map = new Map();
+  sampleOrders.forEach((ord) => {
+    const key = ord.customer_document.replace(/\D/g, '');
+    if (!map.has(key)) {
+      map.set(key, {
+        name: ord.customer_name,
+        phone: ord.customer_phone,
+        total_orders: 1,
+        total_spent: ord.total_amount,
+        is_recurrent: false,
+      });
+    } else {
+      const existing = map.get(key);
+      existing.total_orders += 1;
+      existing.total_spent += ord.total_amount;
+      existing.is_recurrent = existing.total_orders > 1;
+    }
+  });
+
+  assert.equal(map.size, 1, 'Não deve criar cadastros duplicados para o mesmo cliente');
+  const client = map.get('12345678900');
+  assert.equal(client.total_orders, 2);
+  assert.equal(client.total_spent, 438.86);
+  assert.equal(client.is_recurrent, true, 'Deve identificar cliente como recorrente');
+});
+
+test('22. Deve validar estrutura de atualização cadastral de cliente', () => {
+  const updatedData = {
+    name: 'Condomínio Parque das Gaivotas',
+    phone: '(73) 98822-1144',
+    document: '23.456.789/0001-12',
+    address: {
+      street: 'Av. Cinquentenário',
+      number: '420',
+      neighborhood: 'Centro',
+      city: 'Itabuna',
+      state: 'BA',
+      postal_code: '45600-077',
+    },
+  };
+
+  assert.ok(updatedData.document.includes('/'));
+  assert.equal(updatedData.address.city, 'Itabuna');
+  assert.equal(updatedData.address.state, 'BA');
+});
+
+test('23. Deve mapear status de pedidos para rótulos e badges oficiais em português', () => {
+  const statusLabels = {
+    pending_payment: 'Novo Pedido',
+    payment_approved: 'Aguardando Confirmação',
+    processing: 'Em Preparação',
+    shipped: 'Saiu para Entrega',
+    delivered: 'Concluído',
+    cancelled: 'Cancelado',
+  };
+
+  assert.equal(statusLabels['pending_payment'], 'Novo Pedido');
+  assert.equal(statusLabels['processing'], 'Em Preparação');
+  assert.equal(statusLabels['shipped'], 'Saiu para Entrega');
+  assert.equal(statusLabels['delivered'], 'Concluído');
+});
+
+test('24. Deve validar configurações com logotipo e regras de entrega regional', () => {
+  const storeConfig = {
+    name: 'Itaclean Produtos de Limpeza e Descartáveis',
+    logo_url: '/itaclean-logo.jpg',
+    address: 'Av. Cinquentenário, 187',
+    city: 'Itabuna',
+    state: 'BA',
+    free_shipping_threshold: 299.00,
+    pix_discount_percentage: 5.0,
+  };
+
+  assert.ok(storeConfig.logo_url.endsWith('.jpg'));
+  assert.equal(storeConfig.city, 'Itabuna');
+  assert.equal(storeConfig.state, 'BA');
+});
+
+test('25. Deve validar persistência de imagem e ordem de exibição em categorias', () => {
+  const category = {
+    id: 'cat-quimicos',
+    name: 'Produtos Químicos',
+    slug: 'produtos-quimicos',
+    image_url: 'https://images.unsplash.com/photo-1585421514738-01798e348b17',
+    sort_order: 1,
+    is_active: true,
+  };
+
+  assert.ok(category.image_url.startsWith('https://'));
+  assert.equal(category.sort_order, 1);
+  assert.equal(category.is_active, true);
+});

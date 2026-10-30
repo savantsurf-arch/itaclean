@@ -18,6 +18,9 @@ import {
   Order,
   OrderStatus,
   PaymentStatus,
+  CustomerSummary,
+  CustomerOrderBrief,
+  Address,
 } from '../types';
 
 // Local storage keys for persistent offline/fallback data
@@ -161,6 +164,26 @@ export async function deleteCategory(id: string): Promise<void> {
   const current = getLocalData<Category[]>(STORAGE_KEYS.CATEGORIES, INITIAL_CATEGORIES);
   const updated = current.filter((c) => c.id !== id);
   setLocalData(STORAGE_KEYS.CATEGORIES, updated);
+}
+
+export async function toggleCategoryActive(id: string, is_active: boolean): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase
+      .from('categories')
+      .update({ is_active, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) {
+      console.error('Erro ao alternar status da categoria no Supabase:', error);
+      throw new Error(`Falha ao alterar status da categoria: ${error.message}`);
+    }
+  }
+
+  const current = getLocalData<Category[]>(STORAGE_KEYS.CATEGORIES, INITIAL_CATEGORIES);
+  const index = current.findIndex((c) => c.id === id);
+  if (index >= 0) {
+    current[index] = { ...current[index], is_active };
+    setLocalData(STORAGE_KEYS.CATEGORIES, current);
+  }
 }
 
 // ----------------------------------------------------
@@ -488,6 +511,26 @@ export async function deleteProduct(id: string): Promise<void> {
   setLocalData(STORAGE_KEYS.PRODUCTS, updated);
 }
 
+export async function toggleProductActive(id: string, is_active: boolean): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase
+      .from('products')
+      .update({ is_active, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) {
+      console.error('Erro ao alternar status do produto no Supabase:', error);
+      throw new Error(`Falha ao alterar status do produto: ${error.message}`);
+    }
+  }
+
+  const current = getLocalData<Product[]>(STORAGE_KEYS.PRODUCTS, INITIAL_PRODUCTS);
+  const index = current.findIndex((p) => p.id === id);
+  if (index >= 0) {
+    current[index] = { ...current[index], is_active };
+    setLocalData(STORAGE_KEYS.PRODUCTS, current);
+  }
+}
+
 // ----------------------------------------------------
 // COUPONS
 // ----------------------------------------------------
@@ -777,4 +820,197 @@ export async function updateOrderStatus(
   setLocalData(STORAGE_KEYS.ORDERS, current);
 
   return updatedOrder;
+}
+
+// ----------------------------------------------------
+// CUSTOMERS (AGREGADO CENTRALIZADO)
+// ----------------------------------------------------
+export async function getCustomers(): Promise<CustomerSummary[]> {
+  const orders = await getOrders();
+  const customerMap = new Map<string, CustomerSummary>();
+
+  for (const ord of orders) {
+    const cleanDoc = ord.customer_document?.replace(/\D/g, '') || '';
+    const cleanPhone = ord.customer_phone?.replace(/\D/g, '') || '';
+    const cleanEmail = ord.customer_email?.toLowerCase().trim() || '';
+
+    // Agrupa preferencialmente por documento ou telefone limpo
+    const key = cleanDoc
+      ? `doc_${cleanDoc}`
+      : cleanPhone.length >= 8
+      ? `tel_${cleanPhone.slice(-8)}`
+      : `email_${cleanEmail}`;
+
+    if (!key || key === 'email_') continue;
+
+    const orderBrief: CustomerOrderBrief = {
+      id: ord.id,
+      order_number: ord.order_number,
+      total_amount: ord.total_amount,
+      order_status: ord.order_status,
+      payment_status: ord.payment_status,
+      payment_method: ord.payment_method,
+      created_at: ord.created_at,
+      items_count: ord.items?.length || 1,
+    };
+
+    if (!customerMap.has(key)) {
+      customerMap.set(key, {
+        id: `cust-${key.replace(/[^a-zA-Z0-9]/g, '-')}`,
+        name: ord.customer_name,
+        email: ord.customer_email,
+        phone: ord.customer_phone,
+        document:
+          ord.customer_document && ord.customer_document !== 'Não informado'
+            ? ord.customer_document
+            : undefined,
+        address: ord.shipping_address,
+        total_orders: 1,
+        total_spent: ord.total_amount,
+        first_order_at: ord.created_at,
+        last_order_at: ord.created_at,
+        is_recurrent: false,
+        orders: [orderBrief],
+      });
+    } else {
+      const existing = customerMap.get(key)!;
+      existing.total_orders += 1;
+      existing.total_spent += ord.total_amount;
+      existing.orders.push(orderBrief);
+
+      if (new Date(ord.created_at) > new Date(existing.last_order_at)) {
+        existing.last_order_at = ord.created_at;
+        existing.address = ord.shipping_address;
+        if (ord.customer_name) existing.name = ord.customer_name;
+        if (ord.customer_phone) existing.phone = ord.customer_phone;
+      }
+      if (new Date(ord.created_at) < new Date(existing.first_order_at)) {
+        existing.first_order_at = ord.created_at;
+      }
+      existing.is_recurrent = existing.total_orders > 1;
+    }
+  }
+
+  // Mesclar com cadastros de perfis do Supabase se existirem
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data: profiles } = await supabase.from('profiles').select('*');
+      if (profiles && profiles.length > 0) {
+        for (const prof of profiles) {
+          const cleanDoc = prof.document_number?.replace(/\D/g, '') || '';
+          const cleanPhone = prof.phone?.replace(/\D/g, '') || '';
+          const key = cleanDoc
+            ? `doc_${cleanDoc}`
+            : cleanPhone.length >= 8
+            ? `tel_${cleanPhone.slice(-8)}`
+            : `prof_${prof.id}`;
+
+          if (customerMap.has(key)) {
+            const existing = customerMap.get(key)!;
+            if (prof.company_name) existing.company_name = prof.company_name;
+            if (prof.full_name) existing.name = prof.full_name;
+          } else {
+            customerMap.set(key, {
+              id: prof.id,
+              name: prof.full_name,
+              email: prof.email || 'Cadastrado no App',
+              phone: prof.phone || '',
+              document: prof.document_number,
+              company_name: prof.company_name,
+              address: {
+                id: `addr-prof-${prof.id}`,
+                recipient_name: prof.full_name,
+                postal_code: '45600-077',
+                street: 'Av. Cinquentenário',
+                number: '',
+                neighborhood: 'Centro',
+                city: 'Itabuna',
+                state: 'BA',
+              },
+              total_orders: 0,
+              total_spent: 0,
+              first_order_at: prof.created_at || new Date().toISOString(),
+              last_order_at: prof.created_at || new Date().toISOString(),
+              is_recurrent: false,
+              orders: [],
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Supabase profiles fetch error:', e);
+    }
+  }
+
+  return Array.from(customerMap.values()).sort(
+    (a, b) => new Date(b.last_order_at).getTime() - new Date(a.last_order_at).getTime()
+  );
+}
+
+export async function updateCustomer(
+  customerId: string,
+  updatedData: {
+    name?: string;
+    phone?: string;
+    email?: string;
+    document?: string;
+    address?: Partial<Address>;
+  }
+): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    const dbUpdates: any = {};
+    if (updatedData.name) dbUpdates.customer_name = updatedData.name;
+    if (updatedData.phone) dbUpdates.customer_phone = updatedData.phone;
+    if (updatedData.email) dbUpdates.customer_email = updatedData.email;
+    if (updatedData.document) dbUpdates.customer_document = updatedData.document;
+    if (updatedData.address) {
+      if (updatedData.address.street) dbUpdates.shipping_street = updatedData.address.street;
+      if (updatedData.address.number) dbUpdates.shipping_number = updatedData.address.number;
+      if (updatedData.address.neighborhood)
+        dbUpdates.shipping_neighborhood = updatedData.address.neighborhood;
+      if (updatedData.address.city) dbUpdates.shipping_city = updatedData.address.city;
+      if (updatedData.address.state) dbUpdates.shipping_state = updatedData.address.state;
+      if (updatedData.address.postal_code)
+        dbUpdates.shipping_postal_code = updatedData.address.postal_code;
+    }
+
+    if (Object.keys(dbUpdates).length > 0) {
+      const cleanPhone = updatedData.phone?.replace(/\D/g, '') || '';
+      if (cleanPhone.length >= 8) {
+        await supabase
+          .from('orders')
+          .update(dbUpdates)
+          .ilike('customer_phone', `%${cleanPhone.slice(-8)}%`);
+      }
+    }
+  }
+
+  // Atualiza também em cache local
+  const orders = getLocalData<Order[]>(STORAGE_KEYS.ORDERS, INITIAL_ORDERS);
+  const updatedOrders = orders.map((o) => {
+    const isMatch =
+      (updatedData.phone &&
+        o.customer_phone.replace(/\D/g, '').slice(-8) ===
+          updatedData.phone.replace(/\D/g, '').slice(-8)) ||
+      (updatedData.document &&
+        o.customer_document?.replace(/\D/g, '') ===
+          updatedData.document.replace(/\D/g, '')) ||
+      (updatedData.email &&
+        o.customer_email.toLowerCase() === updatedData.email.toLowerCase());
+
+    if (isMatch) {
+      return {
+        ...o,
+        customer_name: updatedData.name || o.customer_name,
+        customer_phone: updatedData.phone || o.customer_phone,
+        customer_email: updatedData.email || o.customer_email,
+        customer_document: updatedData.document || o.customer_document,
+        shipping_address: updatedData.address
+          ? { ...o.shipping_address, ...updatedData.address }
+          : o.shipping_address,
+      };
+    }
+    return o;
+  });
+  setLocalData(STORAGE_KEYS.ORDERS, updatedOrders);
 }

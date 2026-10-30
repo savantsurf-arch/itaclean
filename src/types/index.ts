@@ -204,6 +204,7 @@ export interface StoreSettings {
   whatsapp: string;
   instagram?: string;
   email: string;
+  logo_url?: string;
   address: string;
   neighborhood: string;
   city: string;
@@ -214,4 +215,31 @@ export interface StoreSettings {
   pix_discount_percentage: number;
   max_installments: number;
   interest_free_installments: number;
+}
+
+export interface CustomerOrderBrief {
+  id: string;
+  order_number: string;
+  total_amount: number;
+  order_status: OrderStatus;
+  payment_status: PaymentStatus;
+  payment_method: PaymentMethod;
+  created_at: string;
+  items_count: number;
+}
+
+export interface CustomerSummary {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  document?: string;
+  company_name?: string;
+  address: Address;
+  total_orders: number;
+  total_spent: number;
+  first_order_at: string;
+  last_order_at: string;
+  is_recurrent: boolean;
+  orders: CustomerOrderBrief[];
 }
