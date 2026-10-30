@@ -24,6 +24,7 @@ import {
   formatCurrency,
   formatPhone,
   formatCEP,
+  formatDocument,
   fetchAddressByCEP,
   calculateShippingEstimate,
 } from '../lib/utils';
@@ -384,8 +385,9 @@ export const CheckoutPage: React.FC = () => {
                       <input
                         type="text"
                         placeholder="00.000.000/0000-00"
+                        maxLength={18}
                         value={companyDoc}
-                        onChange={(e) => setCompanyDoc(e.target.value)}
+                        onChange={(e) => setCompanyDoc(formatDocument(e.target.value))}
                         className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#003893] focus:outline-none transition-all"
                       />
                     </div>

@@ -237,7 +237,18 @@ export const AdminOrders: React.FC = () => {
                 <span className="font-bold text-slate-900 block mb-1">Dados do Cliente:</span>
                 <p>Nome: {selectedOrder.customer_name}</p>
                 <p>E-mail: {selectedOrder.customer_email}</p>
-                <p>Tel: {selectedOrder.customer_phone}</p>
+                <p>
+                  Tel: {selectedOrder.customer_phone}{' '}
+                  <a
+                    href={`https://wa.me/55${selectedOrder.customer_phone.replace(/\D/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-emerald-700 hover:text-emerald-800 font-bold ml-1 hover:underline inline-flex items-center gap-0.5"
+                    title="Conversar no WhatsApp"
+                  >
+                    (Abrir WhatsApp)
+                  </a>
+                </p>
                 {selectedOrder.customer_document && <p>Doc: {selectedOrder.customer_document}</p>}
               </div>
               <div>
