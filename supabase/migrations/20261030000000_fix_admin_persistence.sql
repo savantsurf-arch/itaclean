@@ -62,6 +62,12 @@ BEGIN
         ALTER TABLE public.order_items ALTER COLUMN product_variant_id TYPE TEXT;
         ALTER TABLE public.order_items ALTER COLUMN id SET DEFAULT uuid_generate_v4()::text;
     END IF;
+
+    -- Ajustar wishlist_items
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'wishlist_items' AND column_name = 'product_id' AND data_type = 'uuid') THEN
+        ALTER TABLE public.wishlist_items DROP CONSTRAINT IF EXISTS wishlist_items_product_id_fkey;
+        ALTER TABLE public.wishlist_items ALTER COLUMN product_id TYPE TEXT;
+    END IF;
 END $$;
 
 -- 2. Garantir colunas essenciais na tabela products

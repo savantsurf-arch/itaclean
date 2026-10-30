@@ -232,7 +232,7 @@ CREATE TABLE IF NOT EXISTS public.wishlists (
 CREATE TABLE IF NOT EXISTS public.wishlist_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     wishlist_id UUID NOT NULL REFERENCES public.wishlists(id) ON DELETE CASCADE,
-    product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    product_id TEXT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     CONSTRAINT unique_wishlist_product UNIQUE (wishlist_id, product_id)
 );
