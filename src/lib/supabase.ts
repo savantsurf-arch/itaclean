@@ -1,7 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// Configurações do Supabase (URL e Chave Pública Anon)
+const supabaseUrl =
+  import.meta.env.VITE_SUPABASE_URL || 'https://qoutqwhsvgpylrjnxozg.supabase.co';
+const supabaseAnonKey =
+  import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_7v8FWcMI5TQFaWMqHOXUVA_bq7T5h1l';
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
