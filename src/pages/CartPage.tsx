@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Building2,
+  MessageCircle,
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import {
@@ -370,7 +371,7 @@ export const CartPage: React.FC = () => {
                 </div>
 
                 <div className="pt-3 border-t border-slate-200 flex justify-between items-baseline">
-                  <span className="text-sm font-bold text-slate-900">Total a Pagar:</span>
+                  <span className="text-sm font-bold text-slate-900">Total do Pedido:</span>
                   <div className="text-right">
                     <span className="text-xl font-black text-[#003893]">
                       {formatCurrency(total)}
@@ -384,15 +385,18 @@ export const CartPage: React.FC = () => {
 
               <button
                 onClick={() => navigate('/checkout')}
-                className="w-full py-4 bg-[#003893] hover:bg-[#002766] text-white font-black text-sm rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.99]"
               >
-                <span>Avançar para o Checkout</span>
-                <ArrowRight className="w-4 h-4" />
+                <MessageCircle className="w-5 h-5 fill-current" />
+                <span>Finalizar Pedido pelo WhatsApp</span>
               </button>
 
-              <div className="text-center pt-2">
-                <span className="text-[11px] text-slate-400 flex items-center justify-center gap-1">
-                  🔒 Ambiente seguro com criptografia 256-bit
+              <div className="text-center pt-2 space-y-1">
+                <span className="text-[11px] text-emerald-700 font-semibold flex items-center justify-center gap-1">
+                  💬 Pagamento e entrega combinados no WhatsApp
+                </span>
+                <span className="text-[10px] text-slate-400 block">
+                  Sem necessidade de digitar dados de cartão no site.
                 </span>
               </div>
             </div>

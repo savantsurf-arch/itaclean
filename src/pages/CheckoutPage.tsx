@@ -1,94 +1,95 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  ShieldCheck,
-  CheckCircle2,
-  Lock,
+  MessageCircle,
   Truck,
-  CreditCard,
-  QrCode,
-  FileText,
   User,
   MapPin,
   Building2,
   ArrowRight,
   AlertCircle,
   Copy,
+  CheckCircle2,
+  ExternalLink,
+  ShieldCheck,
+  Phone,
+  FileText,
+  Clock,
+  Sparkles,
+  ShoppingBag,
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import {
   formatCurrency,
-  calculatePixPrice,
-  formatDocument,
   formatPhone,
   formatCEP,
   fetchAddressByCEP,
   calculateShippingEstimate,
 } from '../lib/utils';
 import { createOrder } from '../lib/data-service';
-import { Address, Order, PaymentMethod } from '../types';
+import { Address } from '../types';
+import {
+  ITACLEAN_WHATSAPP_NUMBER,
+  buildWhatsAppOrderMessage,
+  generateWhatsAppOrderUrl,
+  formatWhatsAppPrice,
+} from '../lib/whatsapp';
 
 export const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const { items, subtotal, discountAmount, appliedCoupon, total, clearCart } = useCart();
   const { user } = useAuth();
 
-  // Form State
+  // Dados do Cliente
   const [customerName, setCustomerName] = useState(user?.full_name || '');
-  const [customerEmail, setCustomerEmail] = useState(user?.email || '');
   const [customerPhone, setCustomerPhone] = useState(user?.phone || '');
-  const [customerDoc, setCustomerDoc] = useState(user?.document_number || '');
   const [isCompany, setIsCompany] = useState(false);
+  const [companyDoc, setCompanyDoc] = useState(user?.document_number || '');
 
-  // Address
+  // Endereço de Entrega
   const [cep, setCep] = useState('');
   const [street, setStreet] = useState('');
   const [number, setNumber] = useState('');
-  const [complement, setComplement] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
-  const [city, setCity] = useState('');
-  const [state, setState] = useState('');
+  const [city, setCity] = useState('Itabuna');
+  const [state, setState] = useState('BA');
+  const [complement, setComplement] = useState('');
   const [reference, setReference] = useState('');
+  const [notes, setNotes] = useState('');
   const [isSearchingCep, setIsSearchingCep] = useState(false);
 
-  // Shipping
+  // Opções de Frete
   const [shippingOptions, setShippingOptions] = useState<any[]>([]);
   const [selectedShipping, setSelectedShipping] = useState<any>(null);
 
-  // Payment
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
-  const [installments, setInstallments] = useState(1);
-
-  // Credit card dummy inputs (not stored, compliant with PCI/LGPD)
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardHolder, setCardHolder] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
-
-  // Processing state
+  // Estados de Envio e Modal de Confirmação
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [copiedMessage, setCopiedMessage] = useState(false);
+  const [pendingWhatsAppUrl, setPendingWhatsAppUrl] = useState<string | null>(null);
+  const [generatedMessage, setGeneratedMessage] = useState<string>('');
+  const [createdOrderNumber, setCreatedOrderNumber] = useState<string | null>(null);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
 
-  // If cart is empty, redirect
+  // Redireciona se carrinho estiver vazio
   useEffect(() => {
-    if (items.length === 0) {
+    if (items.length === 0 && !showConfirmationModal) {
       navigate('/carrinho');
     }
-  }, [items.length, navigate]);
+  }, [items.length, showConfirmationModal, navigate]);
 
-  // Pre-fill user data if logged in
+  // Preenche dados do usuário autenticado se disponível
   useEffect(() => {
     if (user) {
-      setCustomerName(user.full_name);
-      setCustomerEmail(user.email);
+      if (user.full_name) setCustomerName(user.full_name);
       if (user.phone) setCustomerPhone(user.phone);
-      if (user.document_number) setCustomerDoc(user.document_number);
+      if (user.document_number) setCompanyDoc(user.document_number);
       if (user.document_type === 'CNPJ') setIsCompany(true);
     }
   }, [user]);
 
-  // Lookup CEP when 8 digits are entered
+  // Busca automática do CEP via ViaCEP
   const handleCepChange = async (val: string) => {
     const formatted = formatCEP(val);
     setCep(formatted);
@@ -99,12 +100,11 @@ export const CheckoutPage: React.FC = () => {
       try {
         const addr = await fetchAddressByCEP(clean);
         if (addr) {
-          setStreet(addr.logradouro);
-          setNeighborhood(addr.bairro);
-          setCity(addr.localidade);
-          setState(addr.uf);
+          setStreet(addr.logradouro || '');
+          setNeighborhood(addr.bairro || '');
+          setCity(addr.localidade || 'Itabuna');
+          setState(addr.uf || 'BA');
 
-          // Calculate shipping options
           const opts = calculateShippingEstimate(clean, subtotal);
           setShippingOptions(opts);
           if (opts.length > 0) {
@@ -112,7 +112,7 @@ export const CheckoutPage: React.FC = () => {
           }
         }
       } catch (e) {
-        console.error('Erro ViaCEP:', e);
+        console.error('Erro ao consultar ViaCEP:', e);
       } finally {
         setIsSearchingCep(false);
       }
@@ -121,39 +121,88 @@ export const CheckoutPage: React.FC = () => {
 
   const shippingCost = selectedShipping ? selectedShipping.price : 0;
   const grandTotal = Math.max(0, subtotal - discountAmount + shippingCost);
-  const finalPixPrice = calculatePixPrice(grandTotal, 5);
-  const effectiveTotal = paymentMethod === 'pix' ? finalPixPrice : grandTotal;
 
-  const handleSubmitOrder = async (e: React.FormEvent) => {
+  // Finalização do pedido pelo WhatsApp
+  const handleFinalizeWhatsApp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
 
-    // Validations
-    if (!customerName.trim() || !customerEmail.trim() || !customerPhone.trim() || !customerDoc.trim()) {
-      setErrorMessage('Por favor, preencha todos os dados de identificação do cliente.');
+    // 1. Validação de itens no carrinho
+    if (items.length === 0) {
+      setErrorMessage('Seu carrinho está vazio. Adicione produtos antes de finalizar.');
+      navigate('/carrinho');
       return;
     }
 
-    if (!cep.trim() || !street.trim() || !number.trim() || !city.trim() || !state.trim()) {
-      setErrorMessage('Por favor, complete o endereço de entrega com número.');
+    // 2. Validação dos dados obrigatórios do cliente
+    if (!customerName.trim()) {
+      setErrorMessage('Por favor, informe seu Nome Completo.');
       return;
     }
 
-    if (!selectedShipping) {
-      setErrorMessage('Selecione uma opção de entrega para continuar.');
+    const cleanPhone = customerPhone.replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 10) {
+      setErrorMessage('Por favor, informe um número de Telefone/WhatsApp válido com DDD.');
       return;
     }
 
-    if (paymentMethod === 'credit_card') {
-      if (!cardNumber || !cardHolder || !cardExpiry || !cardCvv) {
-        setErrorMessage('Por favor, preencha todos os dados do cartão de crédito.');
-        return;
-      }
+    if (!cep.trim() || cep.replace(/\D/g, '').length !== 8) {
+      setErrorMessage('Por favor, informe um CEP válido com 8 dígitos.');
+      return;
+    }
+
+    if (!street.trim()) {
+      setErrorMessage('Por favor, informe o Endereço (Rua/Avenida).');
+      return;
+    }
+
+    if (!number.trim()) {
+      setErrorMessage('Por favor, informe o Número do endereço de entrega.');
+      return;
+    }
+
+    if (!neighborhood.trim()) {
+      setErrorMessage('Por favor, informe o Bairro de entrega.');
+      return;
     }
 
     setIsSubmitting(true);
 
     try {
+      // 3. Monta a mensagem organizada conforme o modelo obrigatório
+      const message = buildWhatsAppOrderMessage({
+        customer: {
+          name: customerName,
+          phone: customerPhone,
+          cep,
+          street,
+          number,
+          neighborhood,
+          city,
+          state,
+          complement,
+          reference,
+          notes,
+        },
+        items: items.map((it) => ({
+          name: it.product.name,
+          variantName: it.variant?.name,
+          quantity: it.quantity,
+          unitPrice: it.unit_price,
+          totalPrice: it.total_price,
+        })),
+        subtotal,
+        total: grandTotal,
+        discountAmount,
+        couponCode: appliedCoupon?.code,
+        shippingAmount: shippingCost,
+        shippingMethod: selectedShipping?.name,
+      });
+
+      // 4. Gera o link oficial wa.me/NUMERO?text=MENSAGEM_URL_ENCODED
+      const whatsappUrl = generateWhatsAppOrderUrl(message, ITACLEAN_WHATSAPP_NUMBER);
+
+      // 5. Salva o pedido no banco/localStorage para registro de histórico
       const shippingAddress: Address = {
         id: `addr-${Date.now()}`,
         recipient_name: customerName,
@@ -170,20 +219,20 @@ export const CheckoutPage: React.FC = () => {
       const orderData = {
         user_id: user?.id,
         customer_name: customerName,
-        customer_email: customerEmail,
+        customer_email: user?.email || `${cleanPhone}@itaclean.com.br`,
         customer_phone: customerPhone,
-        customer_document: customerDoc,
+        customer_document: companyDoc || undefined,
         shipping_address: shippingAddress,
         subtotal,
-        discount_amount: paymentMethod === 'pix' ? discountAmount + (grandTotal - finalPixPrice) : discountAmount,
+        discount_amount: discountAmount,
         shipping_amount: shippingCost,
-        total_amount: effectiveTotal,
+        total_amount: grandTotal,
         coupon_code: appliedCoupon?.code,
-        payment_status: paymentMethod === 'pix' || paymentMethod === 'boleto' ? ('pending' as const) : ('paid' as const),
-        order_status: paymentMethod === 'credit_card' ? ('payment_approved' as const) : ('pending_payment' as const),
-        payment_method: paymentMethod,
-        shipping_method: selectedShipping.name,
-        notes: isCompany ? 'Cliente solicitou emissão de Nota Fiscal Eletrônica corporativa (PJ)' : undefined,
+        payment_status: 'pending' as const,
+        order_status: 'pending_payment' as const,
+        payment_method: 'whatsapp' as const,
+        shipping_method: selectedShipping?.name || 'A combinar via WhatsApp',
+        notes: notes ? `${notes} (Pedido finalizado via WhatsApp)` : 'Finalizado via WhatsApp',
         items: items.map((i) => ({
           id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
           order_id: '',
@@ -198,69 +247,100 @@ export const CheckoutPage: React.FC = () => {
         })),
       };
 
-      const created = await createOrder(orderData);
-      clearCart();
-      navigate(`/pedido/confirmado/${created.order_number}`);
-    } catch (err: any) {
-      console.error('Erro ao finalizar pedido:', err);
-      setErrorMessage('Houve uma falha ao processar o seu pedido. Tente novamente.');
+      const createdOrder = await createOrder(orderData);
+      setCreatedOrderNumber(createdOrder.order_number);
+      setGeneratedMessage(message);
+      setPendingWhatsAppUrl(whatsappUrl);
+
+      // Abre o WhatsApp em nova aba imediatamente
+      window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+
+      // Exibe a tela/modal de confirmação (sem apagar o carrinho prematuramente)
+      setShowConfirmationModal(true);
+    } catch (err) {
+      console.error('Erro ao preparar pedido WhatsApp:', err);
+      setErrorMessage('Ocorreu uma falha ao preparar o seu pedido. Tente novamente.');
+    } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleCopyMessage = () => {
+    if (!generatedMessage) return;
+    navigator.clipboard.writeText(generatedMessage);
+    setCopiedMessage(true);
+    setTimeout(() => setCopiedMessage(false), 3000);
+  };
+
+  const handleFinishAndClearCart = () => {
+    clearCart();
+    if (createdOrderNumber) {
+      navigate(`/pedido/confirmado/${createdOrderNumber}`);
+    } else {
+      navigate('/');
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between pb-6 mb-8 border-b border-slate-200">
+        {/* HEADER BAR */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-8 border-b border-slate-200 gap-4">
           <div>
-            <span className="text-xs font-bold text-sky-700 uppercase tracking-wider">
-              Compra 100% Segura
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full uppercase tracking-wider border border-emerald-200">
+                <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                Checkout Direto via WhatsApp
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1">
               Finalização do Pedido
             </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Preencha seus dados de entrega abaixo. O pedido será enviado pronto para a equipe da ItaClean pelo WhatsApp.
+            </p>
           </div>
-          <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
-            <Lock className="w-4 h-4 text-emerald-600" />
-            <span>Criptografia SSL Ativa</span>
+
+          <div className="flex items-center gap-2 text-xs font-bold text-[#003893] bg-blue-50 px-3.5 py-2 rounded-xl border border-blue-200 shrink-0">
+            <ShieldCheck className="w-4 h-4 text-[#003893]" />
+            <span>Sem necessidade de cartão no site</span>
           </div>
         </div>
 
         {errorMessage && (
-          <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-bold flex items-center gap-2">
+          <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-bold flex items-center gap-2 animate-in fade-in">
             <AlertCircle className="w-5 h-5 shrink-0" />
             <span>{errorMessage}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmitOrder}>
+        <form onSubmit={handleFinalizeWhatsApp}>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* LEFT COLUMN: STEPS */}
+            {/* LEFT COLUMN: DADOS E ENDEREÇO */}
             <div className="lg:col-span-8 space-y-6">
-              {/* ETAPA 1: IDENTIFICAÇÃO */}
+              {/* ETAPA 1: DADOS DO CLIENTE */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2.5">
                     <span className="w-7 h-7 rounded-full bg-[#003893] text-white flex items-center justify-center font-bold text-xs">
                       1
                     </span>
-                    <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                      Identificação do Comprador
+                    <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                      <User className="w-4 h-4 text-[#003893]" />
+                      Dados do Cliente
                     </h2>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsCompany(!isCompany)}
-                      className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-colors ${
-                        isCompany
-                          ? 'bg-blue-100 text-[#003893] font-bold'
-                          : 'bg-slate-100 text-slate-600'
-                      }`}
-                    >
-                      {isCompany ? 'Pessoa Jurídica (PJ)' : 'Comprar como PJ / Empresa'}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsCompany(!isCompany)}
+                    className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-colors ${
+                      isCompany
+                        ? 'bg-blue-100 text-[#003893] font-bold'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {isCompany ? 'Pessoa Jurídica (PJ) Ativa' : 'Comprar como PJ / Empresa'}
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -271,54 +351,45 @@ export const CheckoutPage: React.FC = () => {
                     <input
                       type="text"
                       required
-                      placeholder={isCompany ? 'Ex: Condomínio Edifício Paulista' : 'Ex: Carlos Silva'}
+                      placeholder={isCompany ? 'Ex: Condomínio Edifício Paulista' : 'Ex: João da Silva Santos'}
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#003893] focus:outline-none transition-all"
                     />
                   </div>
 
                   <div>
-                    <label className="font-bold text-slate-700 block mb-1">
-                      E-mail para Confirmação e Nota Fiscal *
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="seuemail@empresa.com.br"
-                      value={customerEmail}
-                      onChange={(e) => setCustomerEmail(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="font-bold text-slate-700 block mb-1">
-                      Telefone / WhatsApp para Entrega *
+                    <label className="font-bold text-slate-700 block mb-1 flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                      Telefone / WhatsApp com DDD *
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="(11) 98765-4321"
+                      placeholder="(73) 99999-9999"
                       value={customerPhone}
                       onChange={(e) => setCustomerPhone(formatPhone(e.target.value))}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#003893] focus:outline-none transition-all"
                     />
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      Número onde você receberá a confirmação da equipe ItaClean.
+                    </span>
                   </div>
 
-                  <div>
-                    <label className="font-bold text-slate-700 block mb-1">
-                      {isCompany ? 'CNPJ da Empresa *' : 'CPF do Titular *'}
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder={isCompany ? '00.000.000/0000-00' : '000.000.000-00'}
-                      value={customerDoc}
-                      onChange={(e) => setCustomerDoc(formatDocument(e.target.value))}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
-                    />
-                  </div>
+                  {isCompany && (
+                    <div className="sm:col-span-2">
+                      <label className="font-bold text-slate-700 block mb-1">
+                        CNPJ da Empresa (Opcional para faturamento B2B)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="00.000.000/0000-00"
+                        value={companyDoc}
+                        onChange={(e) => setCompanyDoc(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#003893] focus:outline-none transition-all"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -328,7 +399,8 @@ export const CheckoutPage: React.FC = () => {
                   <span className="w-7 h-7 rounded-full bg-[#003893] text-white flex items-center justify-center font-bold text-xs">
                     2
                   </span>
-                  <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                  <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-[#003893]" />
                     Endereço de Entrega
                   </h2>
                 </div>
@@ -336,33 +408,33 @@ export const CheckoutPage: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
                   <div>
                     <label className="font-bold text-slate-700 block mb-1">
-                      CEP (Preenchimento Automático) *
+                      CEP * (Preenchimento Automático)
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="00000-000"
+                      placeholder="45600-077"
                       maxLength={9}
                       value={cep}
                       onChange={(e) => handleCepChange(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#003893] focus:outline-none transition-all"
                     />
                     {isSearchingCep && (
-                      <span className="text-[10px] text-sky-600 block mt-1">
+                      <span className="text-[10px] text-sky-600 block mt-1 font-semibold animate-pulse">
                         Buscando endereço via CEP...
                       </span>
                     )}
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="font-bold text-slate-700 block mb-1">Logradouro / Rua *</label>
+                    <label className="font-bold text-slate-700 block mb-1">Endereço / Logradouro *</label>
                     <input
                       type="text"
                       required
-                      placeholder="Av. Paulista, Rua dos Pinheiros..."
+                      placeholder="Ex: Av. Cinquentenário, Rua do Comércio..."
                       value={street}
                       onChange={(e) => setStreet(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#003893] focus:outline-none transition-all"
                     />
                   </div>
 
@@ -371,21 +443,10 @@ export const CheckoutPage: React.FC = () => {
                     <input
                       type="text"
                       required
-                      placeholder="Ex: 1200"
+                      placeholder="Ex: 187 ou S/N"
                       value={number}
                       onChange={(e) => setNumber(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="font-bold text-slate-700 block mb-1">Complemento / Bloco</label>
-                    <input
-                      type="text"
-                      placeholder="Apto 42, Galpão 3..."
-                      value={complement}
-                      onChange={(e) => setComplement(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#003893] focus:outline-none transition-all"
                     />
                   </div>
 
@@ -394,66 +455,81 @@ export const CheckoutPage: React.FC = () => {
                     <input
                       type="text"
                       required
-                      placeholder="Bairro"
+                      placeholder="Ex: Centro"
                       value={neighborhood}
                       onChange={(e) => setNeighborhood(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#003893] focus:outline-none transition-all"
                     />
                   </div>
 
                   <div>
-                    <label className="font-bold text-slate-700 block mb-1">Cidade *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Cidade"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
-                    />
+                    <label className="font-bold text-slate-700 block mb-1">Cidade / Estado *</label>
+                    <div className="grid grid-cols-3 gap-1">
+                      <input
+                        type="text"
+                        required
+                        placeholder="Cidade"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        className="col-span-2 px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#003893] focus:outline-none text-xs"
+                      />
+                      <input
+                        type="text"
+                        required
+                        placeholder="UF"
+                        maxLength={2}
+                        value={state}
+                        onChange={(e) => setState(e.target.value.toUpperCase())}
+                        className="px-2 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#003893] focus:outline-none text-xs uppercase text-center font-bold"
+                      />
+                    </div>
                   </div>
 
                   <div>
-                    <label className="font-bold text-slate-700 block mb-1">Estado (UF) *</label>
+                    <label className="font-bold text-slate-700 block mb-1">Complemento (Opcional)</label>
                     <input
                       type="text"
-                      required
-                      placeholder="SP"
-                      maxLength={2}
-                      value={state}
-                      onChange={(e) => setState(e.target.value.toUpperCase())}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
+                      placeholder="Apto 101, Galpão 2, Sala 3..."
+                      value={complement}
+                      onChange={(e) => setComplement(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#003893] focus:outline-none transition-all"
                     />
                   </div>
 
-                  <div>
-                    <label className="font-bold text-slate-700 block mb-1">Ponto de Referência</label>
+                  <div className="sm:col-span-2">
+                    <label className="font-bold text-slate-700 block mb-1">Ponto de Referência (Opcional)</label>
                     <input
                       type="text"
-                      placeholder="Próximo à portaria social..."
+                      placeholder="Ex: Próximo à Praça Camacan, em frente ao posto..."
                       value={reference}
                       onChange={(e) => setReference(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#003893] focus:outline-none transition-all"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* ETAPA 3: MODALIDADE DE ENTREGA */}
+              {/* ETAPA 3: OPÇÃO DE ENTREGA / RETIRADA */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 space-y-4">
                 <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
                   <span className="w-7 h-7 rounded-full bg-[#003893] text-white flex items-center justify-center font-bold text-xs">
                     3
                   </span>
-                  <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                    Opção de Entrega
+                  <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-[#003893]" />
+                    Modalidade de Entrega ou Retirada
                   </h2>
                 </div>
 
                 {shippingOptions.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic">
-                    Informe seu CEP no passo anterior para calcular as opções de frete disponíveis para o seu endereço.
-                  </p>
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600">
+                    <p className="font-semibold text-slate-700">
+                      💡 Digite seu CEP no passo anterior para consultar as opções de entrega.
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Também disponibilizamos retirada sem custo na loja física de Itabuna: Av. Cinquentenário, 187 - Centro.
+                    </p>
+                  </div>
                 ) : (
                   <div className="space-y-2.5">
                     {shippingOptions.map((opt) => (
@@ -461,7 +537,7 @@ export const CheckoutPage: React.FC = () => {
                         key={opt.id}
                         className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all ${
                           selectedShipping?.id === opt.id
-                            ? 'border-[#003893] bg-blue-50/60 font-bold'
+                            ? 'border-[#003893] bg-blue-50/70 font-bold ring-1 ring-[#003893]/30'
                             : 'border-slate-200 hover:bg-slate-50'
                         }`}
                       >
@@ -480,7 +556,7 @@ export const CheckoutPage: React.FC = () => {
                         </div>
                         <span className="text-xs font-black text-[#003893]">
                           {opt.price === 0 ? (
-                            <span className="text-emerald-600 uppercase">Grátis</span>
+                            <span className="text-emerald-600 uppercase font-bold">Grátis</span>
                           ) : (
                             formatCurrency(opt.price)
                           )}
@@ -491,199 +567,85 @@ export const CheckoutPage: React.FC = () => {
                 )}
               </div>
 
-              {/* ETAPA 4: PAGAMENTO */}
+              {/* ETAPA 4: OBSERVAÇÕES DO PEDIDO */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 space-y-4">
                 <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
                   <span className="w-7 h-7 rounded-full bg-[#003893] text-white flex items-center justify-center font-bold text-xs">
                     4
                   </span>
-                  <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                    Forma de Pagamento
+                  <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-[#003893]" />
+                    Observações do Pedido (Opcional)
                   </h2>
                 </div>
 
-                {/* Method selector pills */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {/* PIX */}
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('pix')}
-                    className={`p-3 rounded-xl border text-left flex items-start gap-3 transition-all ${
-                      paymentMethod === 'pix'
-                        ? 'border-emerald-600 bg-emerald-50/70 ring-2 ring-emerald-500/20'
-                        : 'border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <QrCode className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-slate-900">Pix</span>
-                        <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded">
-                          5% OFF
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5">Aprovação imediata</p>
-                    </div>
-                  </button>
-
-                  {/* CARTÃO DE CRÉDITO */}
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('credit_card')}
-                    className={`p-3 rounded-xl border text-left flex items-start gap-3 transition-all ${
-                      paymentMethod === 'credit_card'
-                        ? 'border-[#003893] bg-blue-50/70 ring-2 ring-[#003893]/20'
-                        : 'border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <CreditCard className="w-5 h-5 text-[#003893] shrink-0 mt-0.5" />
-                    <div>
-                      <span className="text-xs font-bold text-slate-900">Cartão de Crédito</span>
-                      <p className="text-[11px] text-slate-500 mt-0.5">Em até 12x (3x sem juros)</p>
-                    </div>
-                  </button>
-
-                  {/* BOLETO FATURADO PJ */}
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('boleto')}
-                    className={`p-3 rounded-xl border text-left flex items-start gap-3 transition-all ${
-                      paymentMethod === 'boleto'
-                        ? 'border-amber-600 bg-amber-50/70 ring-2 ring-amber-500/20'
-                        : 'border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <FileText className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="text-xs font-bold text-slate-900">Boleto PJ Faturado</span>
-                      <p className="text-[11px] text-slate-500 mt-0.5">Até 30 dias para empresas</p>
-                    </div>
-                  </button>
+                <div className="text-xs">
+                  <textarea
+                    rows={3}
+                    placeholder="Instruções especiais de entrega, preferências de faturamento, horários de recebimento..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#003893] focus:outline-none transition-all"
+                  />
                 </div>
+              </div>
 
-                {/* Sub-form based on method */}
-                {paymentMethod === 'pix' && (
-                  <div className="p-4 bg-emerald-50/60 rounded-xl border border-emerald-200 text-xs text-emerald-900 space-y-2">
-                    <p className="font-bold flex items-center gap-1.5 text-emerald-800">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      Desconto de 5% aplicado no Pix!
-                    </p>
-                    <p>
-                      Valor final com desconto:{' '}
-                      <strong className="text-emerald-950 text-sm">
-                        {formatCurrency(finalPixPrice)}
-                      </strong>
-                    </p>
-                    <p className="text-[11px] text-slate-600">
-                      Ao clicar em "Confirmar Pedido", geraremos o QR Code oficial do Pix e a chave Copia e Cola para pagamento imediato pelo aplicativo do seu banco.
-                    </p>
+              {/* INFORMAÇÃO SOBRE PAGAMENTO DIRETO NO WHATSAPP */}
+              <div className="p-5 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl space-y-2">
+                <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm">
+                  <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center">
+                    <MessageCircle className="w-3.5 h-3.5" />
                   </div>
-                )}
-
-                {paymentMethod === 'credit_card' && (
-                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 text-xs">
-                    <div>
-                      <label className="font-bold text-slate-700 block mb-1">Número do Cartão *</label>
-                      <input
-                        type="text"
-                        placeholder="0000 0000 0000 0000"
-                        maxLength={19}
-                        value={cardNumber}
-                        onChange={(e) => setCardNumber(e.target.value)}
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="font-bold text-slate-700 block mb-1">Nome no Cartão *</label>
-                      <input
-                        type="text"
-                        placeholder="Nome idêntico ao impresso no cartão"
-                        value={cardHolder}
-                        onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="font-bold text-slate-700 block mb-1">Validade (MM/AA) *</label>
-                        <input
-                          type="text"
-                          placeholder="MM/AA"
-                          maxLength={5}
-                          value={cardExpiry}
-                          onChange={(e) => setCardExpiry(e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
-                        />
-                      </div>
-                      <div>
-                        <label className="font-bold text-slate-700 block mb-1">Código CVV *</label>
-                        <input
-                          type="text"
-                          placeholder="123"
-                          maxLength={4}
-                          value={cardCvv}
-                          onChange={(e) => setCardCvv(e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="font-bold text-slate-700 block mb-1">Opções de Parcelamento *</label>
-                      <select
-                        value={installments}
-                        onChange={(e) => setInstallments(Number(e.target.value))}
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
-                      >
-                        <option value={1}>1x de {formatCurrency(grandTotal)} (À vista sem juros)</option>
-                        <option value={2}>2x de {formatCurrency(grandTotal / 2)} sem juros</option>
-                        <option value={3}>3x de {formatCurrency(grandTotal / 3)} sem juros</option>
-                        <option value={4}>4x de {formatCurrency((grandTotal * 1.05) / 4)}</option>
-                        <option value={6}>6x de {formatCurrency((grandTotal * 1.08) / 6)}</option>
-                        <option value={12}>12x de {formatCurrency((grandTotal * 1.15) / 12)}</option>
-                      </select>
-                    </div>
+                  <span>Como funciona o pagamento?</span>
+                </div>
+                <p className="text-xs text-emerald-900 leading-relaxed">
+                  Para maior comodidade e segurança, <strong>todas as formas de pagamento são combinadas diretamente pelo WhatsApp</strong> com a equipe da ItaClean:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-[11px] text-emerald-950">
+                  <div className="p-2.5 bg-white/80 rounded-xl border border-emerald-200/60">
+                    <strong className="block text-emerald-800">Pix à Vista:</strong>
+                    <span>5% de desconto imediato sobre o pedido.</span>
                   </div>
-                )}
-
-                {paymentMethod === 'boleto' && (
-                  <div className="p-4 bg-amber-50/70 rounded-xl border border-amber-200 text-xs text-amber-900 space-y-2">
-                    <p className="font-bold flex items-center gap-1.5 text-amber-900">
-                      <Building2 className="w-4 h-4 text-amber-700" />
-                      Faturamento Corporativo para Empresas e Condomínios:
-                    </p>
-                    <p>
-                      O boleto bancário será emitido com prazo de <strong>28 a 30 dias</strong> após a validação cadastral do CNPJ da sua empresa pelo nosso setor financeiro.
-                    </p>
-                    <p className="text-[11px] text-slate-600">
-                      A Nota Fiscal Eletrônica (NF-e) acompanhará a mercadoria e será enviada ao e-mail informado.
-                    </p>
+                  <div className="p-2.5 bg-white/80 rounded-xl border border-emerald-200/60">
+                    <strong className="block text-emerald-800">Cartão de Crédito:</strong>
+                    <span>Parcelamento em até 12x (3x sem juros).</span>
                   </div>
-                )}
+                  <div className="p-2.5 bg-white/80 rounded-xl border border-emerald-200/60">
+                    <strong className="block text-emerald-800">Boleto Faturado PJ:</strong>
+                    <span>Condições especiais de até 30 dias para empresas e condomínios.</span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* RIGHT COLUMN: ORDER SUMMARY SIDEBAR */}
+            {/* RIGHT COLUMN: RESUMO DO PEDIDO E BOTÃO WHATSAPP */}
             <div className="lg:col-span-4 space-y-6">
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-5 space-y-4">
-                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider pb-2 border-b border-slate-100">
-                  Itens do Pedido ({items.length})
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-5 space-y-5 sticky top-24">
+                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider pb-2 border-b border-slate-100 flex items-center justify-between">
+                  <span>Resumo do Pedido</span>
+                  <span className="text-[11px] font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full">
+                    {items.length} {items.length === 1 ? 'produto' : 'produtos'}
+                  </span>
                 </h3>
 
-                <div className="divide-y divide-slate-100 max-h-60 overflow-y-auto pr-1">
+                {/* Lista de itens com scroll compacto */}
+                <div className="divide-y divide-slate-100 max-h-64 overflow-y-auto pr-1">
                   {items.map((it) => (
                     <div key={it.id} className="py-2.5 flex items-center gap-3">
                       <img
                         src={it.product.images[0]}
                         alt={it.product.name}
-                        className="w-12 h-12 object-contain rounded border border-slate-100 shrink-0"
+                        className="w-12 h-12 object-contain rounded-lg border border-slate-100 shrink-0 bg-slate-50 p-0.5"
                       />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-slate-800 line-clamp-1">
                           {it.product.name}
                         </p>
+                        {it.variant && (
+                          <span className="text-[10px] text-sky-700 font-medium">
+                            {it.variant.name}
+                          </span>
+                        )}
                         <p className="text-[11px] text-slate-500">
                           {it.quantity}x {formatCurrency(it.unit_price)}
                         </p>
@@ -695,6 +657,7 @@ export const CheckoutPage: React.FC = () => {
                   ))}
                 </div>
 
+                {/* Linhas de valores */}
                 <div className="pt-3 border-t border-slate-200 space-y-2 text-xs text-slate-600">
                   <div className="flex justify-between">
                     <span>Subtotal:</span>
@@ -702,7 +665,7 @@ export const CheckoutPage: React.FC = () => {
                   </div>
                   {discountAmount > 0 && (
                     <div className="flex justify-between text-emerald-700 font-semibold">
-                      <span>Cupom ({appliedCoupon?.code}):</span>
+                      <span>Desconto ({appliedCoupon?.code}):</span>
                       <span>-{formatCurrency(discountAmount)}</span>
                     </div>
                   )}
@@ -712,37 +675,113 @@ export const CheckoutPage: React.FC = () => {
                       {shippingCost === 0 ? 'Grátis' : formatCurrency(shippingCost)}
                     </span>
                   </div>
-                  {paymentMethod === 'pix' && (
-                    <div className="flex justify-between text-emerald-700 font-bold">
-                      <span>Desconto 5% Pix:</span>
-                      <span>-{formatCurrency(grandTotal - finalPixPrice)}</span>
-                    </div>
-                  )}
 
                   <div className="pt-3 border-t border-slate-300 flex justify-between items-baseline">
-                    <span className="text-sm font-bold text-slate-900">Total Final:</span>
+                    <span className="text-sm font-bold text-slate-900">Total do Pedido:</span>
                     <span className="text-2xl font-black text-[#003893]">
-                      {formatCurrency(effectiveTotal)}
+                      {formatCurrency(grandTotal)}
                     </span>
                   </div>
                 </div>
 
+                {/* BOTÃO PRINCIPAL DE FINALIZAÇÃO PELO WHATSAPP */}
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-4 bg-[#003893] hover:bg-[#002766] text-white font-black text-sm rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <ShieldCheck className="w-5 h-5 text-sky-400" />
-                  <span>{isSubmitting ? 'Processando Pedido...' : 'Confirmar e Finalizar Pedido'}</span>
+                  <MessageCircle className="w-5 h-5 fill-current" />
+                  <span>
+                    {isSubmitting ? 'Preparando WhatsApp...' : 'FINALIZAR PEDIDO PELO WHATSAPP'}
+                  </span>
                 </button>
 
-                <p className="text-[11px] text-center text-slate-500">
-                  Ao confirmar o pedido, você concorda com nossos Termos de Compra e Política de Privacidade.
-                </p>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-[11px] text-slate-500 text-center space-y-1">
+                  <p className="font-semibold text-slate-700 flex items-center justify-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    Seus dados estão protegidos
+                  </p>
+                  <p>
+                    O carrinho permanecerá salvo até que você confirme o envio com a equipe ItaClean no WhatsApp.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </form>
+
+        {/* MODAL DE CONFIRMAÇÃO PÓS-CLIQUE (GARANTE QUE O CARRINHO NÃO SEJA PERDIDO) */}
+        {showConfirmationModal && (
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-5 animate-in fade-in zoom-in-95 duration-200">
+              <div className="text-center space-y-2">
+                <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-10 h-10" />
+                </div>
+                <h3 className="text-xl font-black text-slate-900">
+                  Pedido Pronto para Envio!
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed max-w-md mx-auto">
+                  Abrimos o WhatsApp em uma nova aba para você enviar a mensagem com o seu pedido.
+                  Caso a janela não tenha aberto automaticamente pelo navegador, use os botões abaixo:
+                </p>
+              </div>
+
+              {/* Botões de Ação Imediata */}
+              <div className="space-y-2.5">
+                {pendingWhatsAppUrl && (
+                  <a
+                    href={pendingWhatsAppUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-md transition-all"
+                  >
+                    <MessageCircle className="w-4 h-4 fill-current" />
+                    <span>Abrir WhatsApp da ItaClean Agora</span>
+                    <ExternalLink className="w-3.5 h-3.5 ml-1" />
+                  </a>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleCopyMessage}
+                  className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Copy className="w-3.5 h-3.5 text-slate-500" />
+                  <span>{copiedMessage ? 'Mensagem Copiada com Sucesso!' : 'Copiar Texto da Mensagem'}</span>
+                </button>
+              </div>
+
+              {/* Prévia da mensagem gerada */}
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">
+                  Prévia da Mensagem Gerada:
+                </span>
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-mono text-slate-700 max-h-36 overflow-y-auto whitespace-pre-wrap select-all">
+                  {generatedMessage}
+                </div>
+              </div>
+
+              {/* Ações Finais: Limpar Carrinho ou Continuar */}
+              <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={handleFinishAndClearCart}
+                  className="flex-1 py-3 bg-[#003893] hover:bg-[#002766] text-white font-bold text-xs rounded-xl transition-all shadow-sm"
+                >
+                  Já enviei no WhatsApp (Concluir)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmationModal(false)}
+                  className="py-3 px-4 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl transition-colors"
+                >
+                  Voltar / Editar Dados
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

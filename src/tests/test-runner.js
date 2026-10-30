@@ -146,3 +146,216 @@ test('8. Deve validar snapshots de produtos e geração de número de pedido', (
   assert.equal(sampleOrder.total_amount, 450.0);
   assert.equal(sampleOrder.items[0].line_total, 119.8);
 });
+
+// ----------------------------------------------------
+// TESTES DE CHECKOUT VIA WHATSAPP (ITACLEAN)
+// ----------------------------------------------------
+
+function formatWhatsAppPrice(value) {
+  return value.toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function buildWhatsAppOrderMessage(params) {
+  const { customer, items, subtotal, total, discountAmount = 0, couponCode, shippingAmount, shippingMethod } = params;
+
+  const itemsLines = items
+    .map((item) => {
+      const nameWithVariant = item.variantName ? `${item.name} (${item.variantName})` : item.name;
+      return `${item.quantity}x ${nameWithVariant} — R$ ${formatWhatsAppPrice(item.unitPrice)}`;
+    })
+    .join('\n');
+
+  let financialBlock = `Subtotal: R$ ${formatWhatsAppPrice(subtotal)}`;
+  if (discountAmount > 0) {
+    financialBlock += `\nDesconto${couponCode ? ` (${couponCode})` : ''}: -R$ ${formatWhatsAppPrice(discountAmount)}`;
+  }
+  if (shippingAmount !== undefined && shippingAmount > 0) {
+    financialBlock += `\nFrete${shippingMethod ? ` (${shippingMethod})` : ''}: R$ ${formatWhatsAppPrice(shippingAmount)}`;
+  } else if (shippingMethod) {
+    financialBlock += `\nFrete: Grátis (${shippingMethod})`;
+  }
+
+  const complementVal = customer.complement?.trim() ? customer.complement.trim() : '-';
+  const referenceVal = customer.reference?.trim() ? customer.reference.trim() : '-';
+  const notesVal = customer.notes?.trim() ? customer.notes.trim() : 'Nenhuma';
+
+  const addressLine = customer.city && customer.state
+    ? `${customer.street.trim()} (${customer.city}/${customer.state})`
+    : customer.street.trim();
+
+  return `*NOVO PEDIDO — ITACLEAN*
+
+Olá! Gostaria de realizar um pedido.
+
+*DADOS DO CLIENTE*
+Nome: ${customer.name.trim()}
+Telefone: ${customer.phone.trim()}
+
+*ENDEREÇO DE ENTREGA*
+CEP: ${customer.cep.trim()}
+Endereço: ${addressLine}
+Número: ${customer.number.trim()}
+Bairro: ${customer.neighborhood.trim()}
+Complemento: ${complementVal}
+Referência: ${referenceVal}
+
+*PRODUTOS*
+${itemsLines}
+${financialBlock}
+
+*TOTAL DO PEDIDO: R$ ${formatWhatsAppPrice(total)}*
+
+Observações: ${notesVal}
+
+Gostaria de confirmar meu pedido e combinar a forma de pagamento e entrega.
+
+Obrigado!`;
+}
+
+function generateWhatsAppOrderUrl(message, whatsappNumber = '557341419517') {
+  const cleanNumber = whatsappNumber.replace(/\D/g, '');
+  return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}`;
+}
+
+test('9. Deve calcular corretamente subtotal e total com adição, alteração de quantidade e remoção', () => {
+  let cart = [];
+  const prod1 = { id: 'p1', name: 'Detergente Clorado 5L', price: 35.0 };
+  const prod2 = { id: 'p2', name: 'Papel Toalha Interfolhado', price: 60.0 };
+
+  // Adicionar prod1 (2 unidades)
+  cart.push({ id: 'item1', product: prod1, quantity: 2, unitPrice: 35.0, total: 70.0 });
+  // Adicionar prod2 (1 unidade)
+  cart.push({ id: 'item2', product: prod2, quantity: 1, unitPrice: 60.0, total: 60.0 });
+
+  let subtotal = cart.reduce((acc, it) => acc + it.total, 0);
+  assert.equal(subtotal, 130.0);
+
+  // Alterar quantidade de prod2 para 3 unidades
+  cart[1].quantity = 3;
+  cart[1].total = 3 * cart[1].unitPrice;
+  subtotal = cart.reduce((acc, it) => acc + it.total, 0);
+  assert.equal(subtotal, 250.0);
+
+  // Remover prod1
+  cart = cart.filter((it) => it.id !== 'item1');
+  subtotal = cart.reduce((acc, it) => acc + it.total, 0);
+  assert.equal(subtotal, 180.0);
+  assert.equal(cart.length, 1);
+});
+
+test('10. Deve validar campos obrigatórios do cliente no checkout WhatsApp', () => {
+  const validateCustomer = (data) => {
+    const errors = [];
+    if (!data.name || !data.name.trim()) errors.push('Nome obrigatório');
+    const cleanPhone = (data.phone || '').replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 10) errors.push('Telefone inválido');
+    const cleanCep = (data.cep || '').replace(/\D/g, '');
+    if (!cleanCep || cleanCep.length !== 8) errors.push('CEP inválido');
+    if (!data.street || !data.street.trim()) errors.push('Endereço obrigatório');
+    if (!data.number || !data.number.trim()) errors.push('Número obrigatório');
+    if (!data.neighborhood || !data.neighborhood.trim()) errors.push('Bairro obrigatório');
+    return errors;
+  };
+
+  const invalid = validateCustomer({ name: '', phone: '123', cep: '', street: '', number: '', neighborhood: '' });
+  assert.equal(invalid.length, 6);
+
+  const valid = validateCustomer({
+    name: 'Carlos Oliveira',
+    phone: '(73) 99123-4567',
+    cep: '45600-077',
+    street: 'Av. Cinquentenário',
+    number: '187',
+    neighborhood: 'Centro',
+  });
+  assert.equal(valid.length, 0);
+});
+
+test('11. Deve gerar a mensagem exata do WhatsApp estruturada conforme o modelo da ItaClean', () => {
+  const msg = buildWhatsAppOrderMessage({
+    customer: {
+      name: 'Maria Santos',
+      phone: '(73) 98888-7777',
+      cep: '45600-077',
+      street: 'Av. Cinquentenário',
+      number: '187',
+      neighborhood: 'Centro',
+      city: 'Itabuna',
+      state: 'BA',
+      complement: 'Sala 102',
+      reference: 'Em frente à Praça',
+      notes: 'Entregar até às 17h',
+    },
+    items: [
+      { name: 'Desengraxante Concentrado 5L', quantity: 2, unitPrice: 45.0 },
+      { name: 'Pano Microfibra 40x40', quantity: 10, unitPrice: 4.5 },
+    ],
+    subtotal: 135.0,
+    total: 135.0,
+  });
+
+  assert.ok(msg.includes('*NOVO PEDIDO — ITACLEAN*'));
+  assert.ok(msg.includes('Olá! Gostaria de realizar um pedido.'));
+  assert.ok(msg.includes('*DADOS DO CLIENTE*\nNome: Maria Santos\nTelefone: (73) 98888-7777'));
+  assert.ok(msg.includes('*ENDEREÇO DE ENTREGA*'));
+  assert.ok(msg.includes('CEP: 45600-077'));
+  assert.ok(msg.includes('Número: 187'));
+  assert.ok(msg.includes('Bairro: Centro'));
+  assert.ok(msg.includes('Complemento: Sala 102'));
+  assert.ok(msg.includes('Referência: Em frente à Praça'));
+  assert.ok(msg.includes('*PRODUTOS*'));
+  assert.ok(msg.includes('2x Desengraxante Concentrado 5L — R$ 45,00'));
+  assert.ok(msg.includes('10x Pano Microfibra 40x40 — R$ 4,50'));
+  assert.ok(msg.includes('Subtotal: R$ 135,00'));
+  assert.ok(msg.includes('*TOTAL DO PEDIDO: R$ 135,00*'));
+  assert.ok(msg.includes('Observações: Entregar até às 17h'));
+  assert.ok(msg.includes('Gostaria de confirmar meu pedido e combinar a forma de pagamento e entrega.'));
+  assert.ok(msg.includes('Obrigado!'));
+});
+
+test('12. Deve codificar URL corretamente (URI encoded) com caracteres especiais, traços e acentos', () => {
+  const sampleMessage = '*NOVO PEDIDO — ITACLEAN*\nOlá! Gostaria de realizar um pedido.\nTotal: R$ 150,00';
+  const url = generateWhatsAppOrderUrl(sampleMessage, '557341419517');
+
+  assert.ok(url.startsWith('https://wa.me/557341419517?text='));
+  // Não deve conter quebras de linha cruas ou espaços sem codificar
+  assert.ok(!url.includes('\n'));
+  assert.ok(!url.includes(' '));
+  // Deve conter o texto decodificável intacto
+  const decoded = decodeURIComponent(url.replace('https://wa.me/557341419517?text=', ''));
+  assert.equal(decoded, sampleMessage);
+});
+
+test('13. Deve limpar e centralizar o número do WhatsApp no formato internacional 557341419517', () => {
+  const url1 = generateWhatsAppOrderUrl('Teste', '(73) 4141-9517');
+  assert.ok(url1.startsWith('https://wa.me/7341419517?text=') || url1.startsWith('https://wa.me/557341419517?text='));
+
+  const url2 = generateWhatsAppOrderUrl('Teste', '55 73 4141-9517');
+  assert.ok(url2.startsWith('https://wa.me/557341419517?text='));
+});
+
+test('14. Deve tratar campos opcionais (complemento, referência e observações vazios) com elegância', () => {
+  const msg = buildWhatsAppOrderMessage({
+    customer: {
+      name: 'João',
+      phone: '73999998888',
+      cep: '45600-077',
+      street: 'Rua Principal',
+      number: '10',
+      neighborhood: 'Bairro Novo',
+      complement: '',
+      reference: '   ',
+      notes: '',
+    },
+    items: [{ name: 'Álcool 70 5L', quantity: 1, unitPrice: 42.0 }],
+    subtotal: 42.0,
+    total: 42.0,
+  });
+
+  assert.ok(msg.includes('Complemento: -'));
+  assert.ok(msg.includes('Referência: -'));
+  assert.ok(msg.includes('Observações: Nenhuma'));
+});

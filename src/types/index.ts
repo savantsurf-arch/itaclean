@@ -144,7 +144,7 @@ export type PaymentStatus =
   | 'refunded'
   | 'cancelled';
 
-export type PaymentMethod = 'pix' | 'credit_card' | 'boleto';
+export type PaymentMethod = 'pix' | 'credit_card' | 'boleto' | 'whatsapp';
 
 export interface OrderItem {
   id: string;

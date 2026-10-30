@@ -10,6 +10,7 @@ import {
   Tag,
   CheckCircle2,
   AlertCircle,
+  MessageCircle,
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { formatCurrency, calculatePixPrice } from '../../lib/utils';
@@ -246,10 +247,10 @@ export const CartDrawer: React.FC = () => {
               <div className="space-y-2 pt-2">
                 <button
                   onClick={handleGoToCheckout}
-                  className="w-full py-3 bg-[#003893] hover:bg-[#002766] text-white font-bold text-sm rounded-lg shadow-sm flex items-center justify-center gap-2 transition-all hover:shadow-md cursor-pointer"
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm rounded-lg shadow-sm flex items-center justify-center gap-2 transition-all hover:shadow-md cursor-pointer"
                 >
-                  <span>Finalizar Compra</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <MessageCircle className="w-4 h-4 fill-current" />
+                  <span>Finalizar pelo WhatsApp</span>
                 </button>
                 <button
                   onClick={handleGoToCart}

@@ -16,6 +16,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { getOrderByNumber } from '../lib/data-service';
 import { Order } from '../types';
 import { formatCurrency } from '../lib/utils';
+import { ITACLEAN_WHATSAPP_NUMBER } from '../lib/whatsapp';
 
 export const OrderSuccessPage: React.FC = () => {
   const { orderNumber } = useParams<{ orderNumber: string }>();
@@ -101,16 +102,68 @@ export const OrderSuccessPage: React.FC = () => {
               <span>Imprimir Comprovante</span>
             </button>
             <a
-              href={`https://wa.me/557341419517?text=Ol%C3%A1!%20Acabei%20de%20realizar%20o%20pedido%20${order.order_number}%20no%20site%20da%20Itaclean.`}
+              href={`https://wa.me/${ITACLEAN_WHATSAPP_NUMBER}?text=Ol%C3%A1!%20Gostaria%20de%20falar%20sobre%20o%20pedido%20${order.order_number}%20no%20site%20da%20Itaclean.`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg transition-colors"
             >
               <MessageCircle className="w-4 h-4" />
-              <span>Dúvidas no WhatsApp</span>
+              <span>Abrir no WhatsApp</span>
             </a>
           </div>
         </div>
+
+        {/* WHATSAPP PAYMENT / CONFIRMATION INSTRUCTIONS BOX */}
+        {order.payment_method === 'whatsapp' && (
+          <div className="bg-white rounded-2xl border-2 border-emerald-500/60 shadow-md p-6 sm:p-8 space-y-4">
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <MessageCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900">
+                  Pedido Encaminhado ao WhatsApp da ItaClean
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Nossa equipe de atendimento já foi notificada e está à disposição para confirmar a entrega e o pagamento.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <span className="font-bold text-slate-800 block mb-0.5">Formas Aceitas:</span>
+                <p className="text-slate-600 text-[11px]">
+                  Pix (5% off), Cartão de Crédito até 12x ou Boleto Faturado para Empresas.
+                </p>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <span className="font-bold text-slate-800 block mb-0.5">Atendimento em Itabuna:</span>
+                <p className="text-slate-600 text-[11px]">
+                  Segunda a Sexta: 08:00 às 18:00 | Sábado: 08:00 às 13:00.
+                </p>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <span className="font-bold text-slate-800 block mb-0.5">Retirada Física:</span>
+                <p className="text-slate-600 text-[11px]">
+                  Av. Cinquentenário, 187 - Centro, Itabuna/BA.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row gap-3">
+              <a
+                href={`https://wa.me/${ITACLEAN_WHATSAPP_NUMBER}?text=Ol%C3%A1!%20Gostaria%20de%20confirmar%20meu%20pedido%20${order.order_number}%20e%20combinar%20pagamento%20e%20entrega.`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-md transition-all"
+              >
+                <MessageCircle className="w-4 h-4 fill-current" />
+                <span>Continuar Conversa no WhatsApp</span>
+              </a>
+            </div>
+          </div>
+        )}
 
         {/* PIX PAYMENT INSTRUCTIONS BOX (WHEN PIX SELECTED) */}
         {order.payment_method === 'pix' && (
