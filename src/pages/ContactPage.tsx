@@ -8,6 +8,7 @@ import {
   Send,
   Building2,
   CheckCircle2,
+  ChevronDown,
 } from 'lucide-react';
 import { formatPhone } from '../lib/utils';
 
@@ -18,18 +19,37 @@ export const ContactPage: React.FC = () => {
   const [company, setCompany] = useState('');
   const [subject, setSubject] = useState('cotacao');
   const [message, setMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [isSent, setIsSent] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSent(true);
+    setIsLoading(true);
+
+    try {
+      // Simulação de envio com feedback visual
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      setIsSent(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setIsSent(false);
+    setName('');
+    setEmail('');
+    setPhone('');
+    setCompany('');
+    setMessage('');
+    setSubject('cotacao');
   };
 
   return (
     <div className="min-h-screen bg-slate-50 py-10">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
         <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-[#003893] bg-blue-50 px-3 py-1 rounded-full">
+          <span className="text-xs font-bold uppercase tracking-wider text-[#003893] bg-blue-50 px-3 py-1 rounded-full border border-blue-200/60">
             Fale com a Itaclean
           </span>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">
@@ -41,7 +61,7 @@ export const ContactPage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* CONTACT INFO TILES */}
+          {/* CANAIS OFICIAIS DE ATENDIMENTO */}
           <div className="lg:col-span-5 space-y-4">
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
               <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-2">
@@ -113,114 +133,159 @@ export const ContactPage: React.FC = () => {
             </div>
           </div>
 
-          {/* CONTACT / QUOTE FORM */}
+          {/* FORMULÁRIO DE CONTATO / COTAÇÃO */}
           <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-2xs">
             {isSent ? (
-              <div className="p-8 text-center space-y-3">
-                <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+              <div className="p-8 text-center space-y-4">
+                <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto border border-emerald-200">
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-900">Mensagem Enviada com Sucesso!</h3>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  Recebemos a sua solicitação. Nosso consultor comercial entrará em contato em até 2 horas úteis.
+                <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                  Recebemos a sua solicitação. Nosso consultor comercial entrará em contato em até 2 horas úteis através do e-mail ou WhatsApp informado.
                 </p>
-                <button
-                  onClick={() => setIsSent(false)}
-                  className="px-4 py-2 bg-[#003893] text-white text-xs font-bold rounded-lg"
-                >
-                  Enviar Outra Mensagem
-                </button>
+                <div className="pt-2">
+                  <button
+                    onClick={resetForm}
+                    className="px-5 py-2.5 bg-[#003893] hover:bg-[#002766] text-white text-xs font-bold rounded-lg shadow-sm transition-colors cursor-pointer"
+                  >
+                    Enviar Outra Mensagem
+                  </button>
+                </div>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+              <form onSubmit={handleSubmit} className="space-y-4 text-xs" noValidate={false}>
                 <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider pb-2 border-b border-slate-100">
                   Formulário de Contato e Cotação
                 </h3>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Nome Completo */}
                   <div>
-                    <label className="font-bold text-slate-700 block mb-1">Seu Nome *</label>
+                    <label htmlFor="contact-name" className="font-bold text-slate-700 block mb-1">
+                      Seu Nome *
+                    </label>
                     <input
+                      id="contact-name"
+                      name="name"
                       type="text"
+                      autoComplete="name"
                       required
+                      aria-required="true"
                       placeholder="Ex: João da Silva"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003893] text-slate-900 transition-colors"
                     />
                   </div>
 
+                  {/* E-mail Corporativo */}
                   <div>
-                    <label className="font-bold text-slate-700 block mb-1">E-mail Corporativo *</label>
+                    <label htmlFor="contact-email" className="font-bold text-slate-700 block mb-1">
+                      E-mail Corporativo *
+                    </label>
                     <input
+                      id="contact-email"
+                      name="email"
                       type="email"
+                      autoComplete="email"
                       required
+                      aria-required="true"
                       placeholder="joao@empresa.com.br"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003893] text-slate-900 transition-colors"
                     />
                   </div>
 
+                  {/* Telefone / WhatsApp com Máscara Padronizada */}
                   <div>
-                    <label className="font-bold text-slate-700 block mb-1">Telefone / WhatsApp *</label>
+                    <label htmlFor="contact-phone" className="font-bold text-slate-700 block mb-1">
+                      Telefone / WhatsApp *
+                    </label>
                     <input
-                      type="text"
+                      id="contact-phone"
+                      name="phone"
+                      type="tel"
+                      autoComplete="tel"
                       required
-                      placeholder="(11) 98765-4321"
+                      aria-required="true"
+                      placeholder="(73) 99999-9999"
                       value={phone}
                       onChange={(e) => setPhone(formatPhone(e.target.value))}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003893] text-slate-900 transition-colors"
                     />
                   </div>
 
+                  {/* Nome da Empresa */}
                   <div>
-                    <label className="font-bold text-slate-700 block mb-1">Nome da Empresa / Condomínio</label>
+                    <label htmlFor="contact-company" className="font-bold text-slate-700 block mb-1">
+                      Nome da Empresa / Condomínio
+                    </label>
                     <input
+                      id="contact-company"
+                      name="company"
                       type="text"
+                      autoComplete="organization"
                       placeholder="Ex: Condomínio Residencial Bella Vista"
                       value={company}
                       onChange={(e) => setCompany(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003893] text-slate-900 transition-colors"
                     />
                   </div>
                 </div>
 
+                {/* Motivo do Contato: Select Funcional */}
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Motivo do Contato *</label>
-                  <select
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
-                  >
-                    <option value="cotacao">Cotação em Grande Quantidade / Venda Faturada PJ</option>
-                    <option value="duvida_tecnica">Dúvida Técnica sobre Diluição ou FISPQ</option>
-                    <option value="duvida_pedido">Consultar Status de Pedido Existente</option>
-                    <option value="fornecedor">Parceria / Cadastro de Fornecedor</option>
-                    <option value="outro">Outros Assuntos</option>
-                  </select>
+                  <label htmlFor="contact-subject" className="font-bold text-slate-700 block mb-1">
+                    Motivo do Contato *
+                  </label>
+                  <div className="relative">
+                    <select
+                      id="contact-subject"
+                      name="subject"
+                      required
+                      aria-required="true"
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003893] text-slate-900 transition-colors appearance-none pr-8 cursor-pointer"
+                    >
+                      <option value="cotacao">Cotação em Grande Quantidade / Venda Faturada PJ</option>
+                      <option value="duvida_tecnica">Dúvida Técnica sobre Diluição ou FISPQ</option>
+                      <option value="duvida_pedido">Consultar Status de Pedido Existente</option>
+                      <option value="fornecedor">Parceria / Cadastro de Fornecedor</option>
+                      <option value="outro">Outros Assuntos</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-500 absolute right-3 top-3 pointer-events-none" />
+                  </div>
                 </div>
 
+                {/* Mensagem / Lista de Produtos */}
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">
+                  <label htmlFor="contact-message" className="font-bold text-slate-700 block mb-1">
                     Mensagem / Lista de Produtos para Orçamento *
                   </label>
                   <textarea
+                    id="contact-message"
+                    name="message"
                     required
+                    aria-required="true"
                     rows={4}
                     placeholder="Descreva quais produtos precisa (ex: 10 caixas de papel toalha, 4 galões de desengraxante 5L...) ou sua dúvida."
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#003893]"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003893] text-slate-900 transition-colors resize-y"
                   />
                 </div>
 
+                {/* Botão com Estado de Loading */}
                 <button
                   type="submit"
-                  className="w-full py-3 bg-[#003893] hover:bg-[#002766] text-white font-bold rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  disabled={isLoading}
+                  className="w-full py-3 bg-[#003893] hover:bg-[#002766] text-white font-bold rounded-lg shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#003893] focus:ring-offset-2"
                 >
-                  <Send className="w-4 h-4" />
-                  <span>Enviar Mensagem para o Comercial</span>
+                  <Send className={`w-4 h-4 ${isLoading ? 'animate-pulse' : ''}`} />
+                  <span>{isLoading ? 'Enviando Mensagem...' : 'Enviar Mensagem para o Comercial'}</span>
                 </button>
               </form>
             )}
