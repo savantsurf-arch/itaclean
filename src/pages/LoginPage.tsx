@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Lock, Mail, ArrowRight, Shield, AlertCircle } from 'lucide-react';
+import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, switchRole } = useAuth();
+  const { login } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,16 +28,6 @@ export const LoginPage: React.FC = () => {
     } else {
       setError(res.error || 'Credenciais inválidas.');
     }
-  };
-
-  const handleQuickAdminLogin = async () => {
-    setIsLoading(true);
-    switchRole('admin');
-    try {
-      sessionStorage.setItem('itaclean_admin_authenticated_session', 'true');
-    } catch {}
-    setIsLoading(false);
-    navigate('/admin');
   };
 
   return (
@@ -110,18 +100,6 @@ export const LoginPage: React.FC = () => {
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          {/* Quick Demo Admin Switcher */}
-          <div className="pt-4 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={handleQuickAdminLogin}
-              className="w-full py-2.5 px-3 bg-blue-50 hover:bg-blue-100 text-[#003893] border border-blue-200 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Shield className="w-4 h-4 text-blue-600" />
-              <span>Acesso Rápido de Teste (Admin Itaclean)</span>
-            </button>
-          </div>
 
           <div className="text-center pt-2">
             <p className="text-xs text-slate-500">
