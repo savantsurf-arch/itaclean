@@ -26,6 +26,7 @@ import { OrderSuccessPage } from './pages/OrderSuccessPage';
 import { MyAccountPage } from './pages/MyAccountPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { AboutPage } from './pages/AboutPage';
 import { ContactPage } from './pages/ContactPage';
 import { PrivacyPage } from './pages/PrivacyPage';
@@ -86,6 +87,7 @@ export const App: React.FC = () => {
                   <Route path="/pedido/confirmado/:orderNumber" element={<OrderSuccessPage />} />
                   <Route path="/minha-conta" element={<MyAccountPage />} />
                   <Route path="/login" element={<LoginPage />} />
+                  <Route path="/recuperar-senha" element={<ForgotPasswordPage />} />
                   <Route path="/cadastro" element={<RegisterPage />} />
                   <Route path="/sobre" element={<AboutPage />} />
                   <Route path="/contato" element={<ContactPage />} />
