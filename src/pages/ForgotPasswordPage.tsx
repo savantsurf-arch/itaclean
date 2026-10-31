@@ -39,9 +39,9 @@ export const ForgotPasswordPage: React.FC = () => {
         <div className="text-center">
           <Link to="/" className="inline-block mb-3 focus:outline-none focus:ring-2 focus:ring-[#003893] rounded-xl p-0.5">
             <img
-              src="/itaclean-logo.jpg"
+              src="/itaclean-logo.png"
               alt="Itaclean Limpeza Profissional"
-              className="h-14 sm:h-16 w-auto object-contain rounded-xl shadow-xs mx-auto border border-slate-200"
+              className="h-14 sm:h-16 w-auto object-contain mx-auto"
             />
           </Link>
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">

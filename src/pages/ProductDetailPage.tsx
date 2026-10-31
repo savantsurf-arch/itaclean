@@ -237,7 +237,7 @@ export const ProductDetailPage: React.FC = () => {
             {/* Main Image */}
             <div className="relative flex-1 aspect-square bg-slate-50 rounded-xl border border-slate-100 p-6 flex items-center justify-center overflow-hidden">
               <img
-                src={product.images[selectedImageIndex] || '/itaclean-logo.jpg'}
+                src={product.images[selectedImageIndex] || '/itaclean-logo.png'}
                 alt={product.name}
                 className="max-h-full max-w-full object-contain hover:scale-110 transition-transform duration-300"
               />

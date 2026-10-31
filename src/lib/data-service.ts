@@ -493,7 +493,7 @@ export async function saveProduct(product: Product): Promise<Product> {
       dilution_info: product.dilution_info || '',
       safety_info: product.safety_info || '',
       technical_info: product.technical_info || {},
-      images: product.images && product.images.length > 0 ? product.images : ['/itaclean-logo.jpg'],
+      images: product.images && product.images.length > 0 ? product.images : ['/itaclean-logo.png'],
       is_active: product.is_active ?? true,
       is_featured: product.is_featured ?? false,
       is_new: product.is_new ?? false,

@@ -22,11 +22,13 @@ export const Footer: React.FC = () => {
           {/* COLUNA 1: SOBRE A ITACLEAN */}
           <div className="space-y-4">
             <Link to="/" className="inline-block" aria-label="Itaclean Início">
-              <img
-                src="/itaclean-logo.jpg"
-                alt="Itaclean Limpeza e Descartável"
-                className="h-12 w-auto object-contain rounded-lg border border-slate-700/80 shadow-xs"
-              />
+              <div className="bg-white px-3 py-1.5 rounded-lg inline-block shadow-sm hover:opacity-95 transition-opacity">
+                <img
+                  src="/itaclean-logo.png"
+                  alt="Itaclean Limpeza e Descartável"
+                  className="h-10 sm:h-12 w-auto object-contain"
+                />
+              </div>
             </Link>
             <p className="text-xs text-slate-400 leading-relaxed">
               Distribuidora especializada em produtos de limpeza profissional, químicos de alta

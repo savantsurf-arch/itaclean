@@ -67,11 +67,11 @@ export const Header: React.FC = () => {
     <header className="bg-white border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
         {/* LOGO ITACLEAN */}
-        <Link to="/" className="flex items-center shrink-0 group py-0.5" aria-label="Itaclean Limpeza e Descartável - Início">
+        <Link to="/" className="flex items-center shrink-0 group py-1" aria-label="Itaclean Limpeza e Descartável - Início">
           <img
-            src="/itaclean-logo.jpg"
+            src="/itaclean-logo.png"
             alt="Itaclean Limpeza e Descartável"
-            className="h-12 sm:h-14 md:h-14 w-auto object-contain rounded-lg shadow-xs group-hover:scale-102 transition-transform duration-200"
+            className="h-14 sm:h-16 md:h-18 lg:h-20 w-auto object-contain group-hover:scale-102 transition-transform duration-200"
           />
         </Link>
 
