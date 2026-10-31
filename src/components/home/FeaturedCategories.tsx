@@ -48,8 +48,10 @@ export const FeaturedCategories: React.FC = () => {
           </p>
         </div>
         <Link
-          to="/produtos"
-          className="text-xs sm:text-sm font-bold text-[#003893] hover:text-[#00225d] flex items-center gap-1 group"
+          to="/categorias"
+          className="text-xs sm:text-sm font-bold text-[#003893] hover:text-[#00225d] flex items-center gap-1 group focus:outline-none focus:ring-2 focus:ring-[#003893] rounded px-1"
+          aria-label="Ver todas as categorias de produtos"
+          title="Ver todas as categorias"
         >
           <span>Ver todas</span>
           <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

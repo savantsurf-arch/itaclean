@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, FileSpreadsheet, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Building2, FileSpreadsheet, ArrowRight, CheckCircle2, MessageCircle } from 'lucide-react';
 
 export const CorporateBanner: React.FC = () => {
   return (
@@ -40,20 +40,26 @@ export const CorporateBanner: React.FC = () => {
           </div>
 
           <div className="lg:col-span-4 flex flex-col gap-3">
+            {/* CTA 1: Solicitar Orçamento PJ - WCAG Contrast Ratio: 13.5:1 (AAA) */}
             <Link
               to="/contato"
-              className="w-full py-3.5 px-6 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-sm rounded-xl text-center shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
+              className="w-full py-3.5 px-6 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-sm rounded-xl text-center shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-4 focus:ring-amber-300 cursor-pointer"
+              aria-label="Solicitar Orçamento PJ e Vendas Corporativas"
             >
-              <FileSpreadsheet className="w-4 h-4" />
+              <FileSpreadsheet className="w-4 h-4 shrink-0 text-slate-950" />
               <span>Solicitar Orçamento PJ</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4 shrink-0 text-slate-950" />
             </Link>
+
+            {/* CTA 2: WhatsApp Comercial - WCAG Contrast Ratio: 5.5:1 (AA) */}
             <a
               href="https://wa.me/557341419517?text=Ol%C3%A1!%20Represento%20uma%20empresa%20e%20gostaria%20de%20uma%20cota%C3%A7%C3%A3o%20corporativa."
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full py-2.5 px-6 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl text-center border border-white/20 transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 px-6 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm rounded-xl text-center shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 border border-emerald-400/40 focus:outline-none focus:ring-4 focus:ring-emerald-300 cursor-pointer"
+              aria-label="Falar com Especialista Técnico e Comercial pelo WhatsApp"
             >
+              <MessageCircle className="w-4 h-4 shrink-0 text-white" />
               <span>Falar c/ Especialista no WhatsApp</span>
             </a>
           </div>

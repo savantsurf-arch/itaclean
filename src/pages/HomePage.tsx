@@ -22,12 +22,46 @@ export const HomePage: React.FC = () => {
     async function loadHomeProducts() {
       setIsLoading(true);
       try {
-        const [saleRes, featuredRes, newRes, comboRes] = await Promise.all([
-          getProducts({ onSaleOnly: true, pageSize: 4 }),
-          getProducts({ featuredOnly: true, pageSize: 4 }),
-          getProducts({ sortBy: 'newest', pageSize: 4 }),
-          getProducts({ categorySlug: 'kits-e-combos', pageSize: 4 }),
-        ]);
+        // 1. Super Ofertas: produtos com maior desconto real
+        const saleRes = await getProducts({
+          onSaleOnly: true,
+          sortBy: 'discount_desc',
+          pageSize: 4,
+        });
+        const saleIds = saleRes.products.map((p) => p.id);
+
+        // 2. Mais Vendidos: produtos de alto giro institucional sem repetir as ofertas
+        const featuredRes = await getProducts({
+          featuredOnly: true,
+          excludeIds: saleIds,
+          pageSize: 4,
+        });
+        const featuredIds = featuredRes.products.map((p) => p.id);
+        const displayedIds = [...saleIds, ...featuredIds];
+
+        // 3. Lançamentos: novidades do catálogo sem repetir ofertas nem mais vendidos
+        let newRes = await getProducts({
+          isNewOnly: true,
+          excludeIds: displayedIds,
+          sortBy: 'newest',
+          pageSize: 4,
+        });
+
+        // Caso haja menos de 4 marcados como novos após exclusões, completa com itens mais recentes não exibidos
+        if (newRes.products.length < 4) {
+          const fallbackNew = await getProducts({
+            sortBy: 'newest',
+            excludeIds: displayedIds,
+            pageSize: 4,
+          });
+          newRes = fallbackNew;
+        }
+
+        // 4. Kits e Combos
+        const comboRes = await getProducts({
+          categorySlug: 'kits-e-combos',
+          pageSize: 4,
+        });
 
         setSaleProducts(saleRes.products);
         setFeaturedProducts(featuredRes.products);
@@ -45,16 +79,16 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* 2. Banner principal promocional */}
+      {/* 1. Banner principal promocional */}
       <HeroSlider />
 
-      {/* 3. Faixa de benefícios comerciais */}
+      {/* 2. Faixa de benefícios comerciais */}
       <BenefitsBar />
 
-      {/* 4. Categorias em destaque */}
+      {/* 3. Categorias em destaque */}
       <FeaturedCategories />
 
-      {/* 5. Produtos em promoção */}
+      {/* 4. Produtos em promoção (Super Ofertas reais por maior desconto) */}
       <ProductSection
         badge="Super Ofertas"
         title="Produtos em Promoção"
@@ -63,7 +97,7 @@ export const HomePage: React.FC = () => {
         viewAllLink="/produtos?categoria=ofertas"
       />
 
-      {/* 6. Produtos mais vendidos / Destaques reais */}
+      {/* 5. Produtos mais vendidos / Destaques reais corporativos */}
       <ProductSection
         badge="Mais Vendidos"
         title="Os Favoritos das Empresas"
@@ -72,7 +106,10 @@ export const HomePage: React.FC = () => {
         viewAllLink="/produtos?destaque=true"
       />
 
-      {/* 7. Produtos recém-cadastrados */}
+      {/* 6. NEWSLETTER ESTRATÉGICA (Posição otimizada para máxima conversão no meio do fluxo) */}
+      <Newsletter />
+
+      {/* 7. Produtos recém-cadastrados / Lançamentos distintos */}
       <ProductSection
         badge="Lançamentos"
         title="Novidades no Catálogo"
@@ -81,7 +118,7 @@ export const HomePage: React.FC = () => {
         viewAllLink="/produtos?ordenar=newest"
       />
 
-      {/* 8. Kits e combos */}
+      {/* 8. Kits e combos econômicos */}
       {comboProducts.length > 0 && (
         <ProductSection
           badge="Economia em Lote"
@@ -92,20 +129,17 @@ export const HomePage: React.FC = () => {
         />
       )}
 
-      {/* 9. Marcas disponíveis */}
+      {/* 9. Marcas oficiais disponíveis */}
       <BrandsSection />
 
-      {/* 10. Seção de soluções para empresas */}
+      {/* 10. Seção de soluções para empresas por segmento */}
       <B2BSolutions />
 
-      {/* 11 & 12. Benefícios da loja e chamada para compras em quantidade */}
+      {/* 11. Benefícios da loja e chamada para faturamento PJ */}
       <CorporateBanner />
 
-      {/* Instagram Oficial */}
+      {/* 12. Instagram Oficial */}
       <InstagramBanner />
-
-      {/* 13. Newsletter */}
-      <Newsletter />
     </div>
   );
 };

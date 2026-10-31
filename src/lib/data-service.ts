@@ -286,8 +286,10 @@ export interface ProductFilterParams {
   inStockOnly?: boolean;
   featuredOnly?: boolean;
   onSaleOnly?: boolean;
+  isNewOnly?: boolean;
+  excludeIds?: string[];
   activeOnly?: boolean;
-  sortBy?: 'relevance' | 'price_asc' | 'price_desc' | 'name_asc' | 'newest';
+  sortBy?: 'relevance' | 'price_asc' | 'price_desc' | 'name_asc' | 'newest' | 'discount_desc';
   page?: number;
   pageSize?: number;
 }
@@ -377,8 +379,23 @@ export async function getProducts(params: ProductFilterParams = {}): Promise<Pro
     products = products.filter((p) => p.sale_price && p.sale_price < p.price);
   }
 
+  if (params.isNewOnly) {
+    products = products.filter((p) => p.is_new);
+  }
+
+  if (params.excludeIds && params.excludeIds.length > 0) {
+    products = products.filter((p) => !params.excludeIds!.includes(p.id));
+  }
+
   // Sorting
   switch (params.sortBy) {
+    case 'discount_desc':
+      products.sort((a, b) => {
+        const discA = a.sale_price ? (a.price - a.sale_price) : 0;
+        const discB = b.sale_price ? (b.price - b.sale_price) : 0;
+        return discB - discA;
+      });
+      break;
     case 'price_asc':
       products.sort((a, b) => (a.sale_price ?? a.price) - (b.sale_price ?? b.price));
       break;
@@ -389,9 +406,12 @@ export async function getProducts(params: ProductFilterParams = {}): Promise<Pro
       products.sort((a, b) => a.name.localeCompare(b.name));
       break;
     case 'newest':
-      products.sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
+      products.sort((a, b) => {
+        const diff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        if (diff !== 0) return diff;
+        if (b.is_new !== a.is_new) return (b.is_new ? 1 : 0) - (a.is_new ? 1 : 0);
+        return b.id.localeCompare(a.id);
+      });
       break;
     case 'relevance':
     default:

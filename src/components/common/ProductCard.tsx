@@ -1,10 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Heart, Eye, Check, AlertTriangle } from 'lucide-react';
+import { ShoppingCart, Heart, Eye } from 'lucide-react';
 import { Product } from '../../types';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { formatCurrency, calculatePixPrice } from '../../lib/utils';
+import { StockBadge } from './StockBadge';
 
 interface ProductCardProps {
   product: Product;
@@ -69,7 +70,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <Link to={`/produto/${product.slug}`} className="w-full h-full flex items-center justify-center">
           <img
             src={product.images[0] || '/itaclean-logo.jpg'}
-            alt={product.name}
+            alt={`${product.name} - Itaclean Limpeza Profissional`}
             className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
             loading="lazy"
           />
@@ -99,21 +100,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
         {/* Pricing & Stock */}
         <div className="pt-2 border-t border-slate-100">
-          {/* Stock state */}
+          {/* Stock state padronizado */}
           <div className="mb-2">
-            {isOutOfStock ? (
-              <span className="text-[11px] font-bold text-rose-600 flex items-center gap-1">
-                <AlertTriangle className="w-3.5 h-3.5" /> Indisponível
-              </span>
-            ) : isLowStock ? (
-              <span className="text-[11px] font-semibold text-amber-600 flex items-center gap-1">
-                <AlertTriangle className="w-3.5 h-3.5" /> Poucas unidades no estoque
-              </span>
-            ) : (
-              <span className="text-[11px] font-medium text-emerald-600 flex items-center gap-1">
-                <Check className="w-3.5 h-3.5" /> Em estoque (Pronta entrega)
-              </span>
-            )}
+            <StockBadge
+              quantity={product.stock_quantity}
+              lowStockThreshold={product.low_stock_threshold}
+            />
           </div>
 
           {/* Price display */}
