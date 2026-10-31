@@ -37,10 +37,12 @@ export const ForgotPasswordPage: React.FC = () => {
     <div className="min-h-[80vh] bg-slate-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-6">
         <div className="text-center">
-          <Link to="/" className="inline-flex items-center gap-2 mb-2">
-            <div className="w-12 h-12 rounded-full overflow-hidden border border-slate-200 mx-auto shadow-xs">
-              <img src="/itaclean-logo.jpg" alt="Itaclean" className="w-full h-full object-cover" />
-            </div>
+          <Link to="/" className="inline-block mb-3 focus:outline-none focus:ring-2 focus:ring-[#003893] rounded-xl p-0.5">
+            <img
+              src="/itaclean-logo.jpg"
+              alt="Itaclean Limpeza Profissional"
+              className="h-14 sm:h-16 w-auto object-contain rounded-xl shadow-xs mx-auto border border-slate-200"
+            />
           </Link>
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">
             Recuperação de Senha

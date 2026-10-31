@@ -35,10 +35,12 @@ export const LoginPage: React.FC = () => {
     <div className="min-h-[85vh] bg-slate-50 flex items-center justify-center pt-8 pb-32 sm:py-14 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-6">
         <div className="text-center">
-          <Link to="/" className="inline-flex items-center gap-2 mb-2 focus:outline-none focus:ring-2 focus:ring-[#003893] rounded-full p-0.5">
-            <div className="w-12 h-12 rounded-full overflow-hidden border border-slate-200 mx-auto shadow-xs">
-              <img src="/itaclean-logo.jpg" alt="Itaclean Limpeza Profissional" className="w-full h-full object-cover" />
-            </div>
+          <Link to="/" className="inline-block mb-3 focus:outline-none focus:ring-2 focus:ring-[#003893] rounded-xl p-0.5">
+            <img
+              src="/itaclean-logo.jpg"
+              alt="Itaclean Limpeza Profissional"
+              className="h-14 sm:h-16 w-auto object-contain rounded-xl shadow-xs mx-auto border border-slate-200"
+            />
           </Link>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
             Acesse sua Conta

@@ -58,11 +58,13 @@ export const RegisterPage: React.FC = () => {
         <div className="text-center">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 mb-2 focus:outline-none focus:ring-2 focus:ring-[#003893] rounded-full p-0.5"
+            className="inline-block mb-3 focus:outline-none focus:ring-2 focus:ring-[#003893] rounded-xl p-0.5"
           >
-            <div className="w-12 h-12 rounded-full overflow-hidden border border-slate-200 mx-auto shadow-xs">
-              <img src="/itaclean-logo.jpg" alt="Itaclean Limpeza Profissional" className="w-full h-full object-cover" />
-            </div>
+            <img
+              src="/itaclean-logo.jpg"
+              alt="Itaclean Limpeza Profissional"
+              className="h-14 sm:h-16 w-auto object-contain rounded-xl shadow-xs mx-auto border border-slate-200"
+            />
           </Link>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">Criar Cadastro</h1>
           <p className="text-xs text-slate-500 mt-1">

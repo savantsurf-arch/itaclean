@@ -67,22 +67,12 @@ export const Header: React.FC = () => {
     <header className="bg-white border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
         {/* LOGO ITACLEAN */}
-        <Link to="/" className="flex items-center gap-3 shrink-0 group">
-          <div className="relative w-12 h-12 rounded-full overflow-hidden shadow-sm border border-slate-200 group-hover:scale-105 transition-transform duration-200">
-            <img
-              src="/itaclean-logo.jpg"
-              alt="Itaclean Limpeza e Descartável"
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xl sm:text-2xl font-black tracking-tight text-[#003893] leading-none">
-              ITACLEAN
-            </span>
-            <span className="text-[10px] sm:text-xs font-semibold text-sky-600 tracking-wider uppercase leading-tight mt-0.5">
-              Limpeza & Descartável
-            </span>
-          </div>
+        <Link to="/" className="flex items-center shrink-0 group py-0.5" aria-label="Itaclean Limpeza e Descartável - Início">
+          <img
+            src="/itaclean-logo.jpg"
+            alt="Itaclean Limpeza e Descartável"
+            className="h-12 sm:h-14 md:h-14 w-auto object-contain rounded-lg shadow-xs group-hover:scale-102 transition-transform duration-200"
+          />
         </Link>
 
         {/* SEARCH BAR (DESKTOP & TABLET) */}

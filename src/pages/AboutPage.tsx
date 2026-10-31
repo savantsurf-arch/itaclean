@@ -8,8 +8,12 @@ export const AboutPage: React.FC = () => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
         {/* HERO */}
         <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-12 shadow-2xs text-center space-y-4">
-          <div className="w-16 h-16 rounded-full overflow-hidden border border-slate-200 mx-auto shadow-sm">
-            <img src="/itaclean-logo.jpg" alt="Itaclean" className="w-full h-full object-cover" />
+          <div className="inline-block mx-auto">
+            <img
+              src="/itaclean-logo.jpg"
+              alt="Itaclean Limpeza e Descartável"
+              className="h-16 sm:h-20 w-auto object-contain rounded-xl border border-slate-200 shadow-xs mx-auto"
+            />
           </div>
           <span className="text-xs font-bold uppercase tracking-wider text-[#003893] bg-blue-50 px-3 py-1 rounded-full">
             Nossa História e Compromisso

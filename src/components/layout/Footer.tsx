@@ -21,21 +21,13 @@ export const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 pb-10 border-b border-slate-800">
           {/* COLUNA 1: SOBRE A ITACLEAN */}
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full overflow-hidden border border-slate-700">
-                <img
-                  src="/itaclean-logo.jpg"
-                  alt="Itaclean Logo"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div>
-                <span className="text-xl font-black text-white tracking-tight">ITACLEAN</span>
-                <p className="text-[10px] text-sky-400 font-bold uppercase tracking-wider">
-                  Limpeza & Descartável
-                </p>
-              </div>
-            </div>
+            <Link to="/" className="inline-block" aria-label="Itaclean Início">
+              <img
+                src="/itaclean-logo.jpg"
+                alt="Itaclean Limpeza e Descartável"
+                className="h-12 w-auto object-contain rounded-lg border border-slate-700/80 shadow-xs"
+              />
+            </Link>
             <p className="text-xs text-slate-400 leading-relaxed">
               Distribuidora especializada em produtos de limpeza profissional, químicos de alta
               performance, papéis institucionais, descartáveis e equipamentos para empresas, indústrias,

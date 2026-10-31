@@ -202,16 +202,18 @@ export const AdminLayout: React.FC = () => {
       <aside className="hidden lg:flex w-64 bg-[#00225d] text-white flex-col justify-between shrink-0 shadow-xl border-r border-blue-950">
         <div>
           {/* Logo / Header */}
-          <div className="p-5 border-b border-blue-900/60 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full overflow-hidden border border-blue-400/40 shrink-0">
-              <img src="/itaclean-logo.jpg" alt="Itaclean" className="w-full h-full object-cover" />
-            </div>
-            <div>
-              <span className="font-black text-sm tracking-wide text-white block">
-                PAINEL ITACLEAN
+          <div className="p-4 border-b border-blue-900/60 flex items-center justify-between gap-3">
+            <img
+              src="/itaclean-logo.jpg"
+              alt="Itaclean"
+              className="h-10 w-auto object-contain rounded-lg border border-blue-400/30 shadow-xs"
+            />
+            <div className="text-right">
+              <span className="font-black text-xs tracking-wide text-white block">
+                ADMIN
               </span>
               <span className="text-[10px] text-sky-400 font-bold uppercase tracking-wider">
-                Gestão Comercial
+                Gestão
               </span>
             </div>
           </div>
